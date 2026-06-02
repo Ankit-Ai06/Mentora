@@ -13,17 +13,22 @@ let emailReady = false;
       console.warn("⚠️  EMAIL_USER / EMAIL_PASS not set — dev mode (OTP printed to console)");
       return;
     }
-      transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 587,
-        secure: false,
-        requireTLS: true,
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-        family: 4,
-      });
+transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  requireTLS: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+});
     await transporter.verify();
     emailReady = true;
     console.log("✅ Email transporter ready — real emails will be sent");
