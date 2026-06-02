@@ -42,7 +42,7 @@ async(req,res)=>{
 
 res.json({
 image:
-`http://localhost:5000/uploads/${req.file.filename}`
+`${process.env.BACKEND_URL}/uploads/${req.file.filename}`
 });
 
 }

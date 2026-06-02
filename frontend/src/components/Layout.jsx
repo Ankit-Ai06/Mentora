@@ -12,7 +12,7 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useState } from "react";
-
+import { API_URL } from "../config";
 function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -89,7 +89,7 @@ function Layout({ children }) {
           <div className="hidden md:flex items-center gap-3 bg-white/5 border border-white/10 rounded-3xl px-4 py-3">
             {user.profileImage || user.profilePicture ? (
               <img
-                src={`http://localhost:5000/uploads/${user.profileImage || user.profilePicture}`}
+                src={`${API_URL}/uploads/${user.profileImage || user.profilePicture}`}
                 alt={user.fullName}
                 className="w-9 h-9 rounded-full object-cover shrink-0"
               />

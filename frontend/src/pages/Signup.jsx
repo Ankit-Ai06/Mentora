@@ -8,7 +8,9 @@ import {
   FaExclamationCircle,
 } from "react-icons/fa";
 
-const API = "http://localhost:5000";
+import { API_URL } from "../config";
+
+const API = API_URL;
 
 // ─── VALIDATORS ───────────────────────────────────────────────────
 const isValidEmail = (v) =>

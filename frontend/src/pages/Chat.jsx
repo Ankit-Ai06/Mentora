@@ -15,7 +15,9 @@ import {
 } from "react-icons/fa";
 import io from "socket.io-client";
 
-const API = "http://localhost:5000";
+import { API_URL } from "../config";
+
+const API = API_URL;
 
 // ─── HELPERS ──────────────────────────────────────────────────────
 

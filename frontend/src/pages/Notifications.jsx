@@ -1,7 +1,7 @@
 import Layout from "../components/Layout";
 import { useEffect, useState } from "react";
 import axios from "axios";
-
+import { API_URL } from "../config";
 function Notifications() {
 
   const [notifications,
@@ -18,7 +18,7 @@ function Notifications() {
 
       const res =
       await axios.get(
-      "http://localhost:5000/api/notifications",
+      `${API_URL}/api/notifications`,
       {
         headers:{
           Authorization:

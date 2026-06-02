@@ -11,7 +11,9 @@ import {
   FaCheckCircle,
 } from "react-icons/fa";
 
-const API = "http://localhost:5000";
+import { API_URL } from "../config";
+
+const API = API_URL;
 
 // ─── FORGOT PASSWORD MODAL (3 steps) ─────────────────────────────
 

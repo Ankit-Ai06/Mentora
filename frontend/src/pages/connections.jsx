@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 
 import { motion } from "framer-motion";
+import { API_URL } from "../config";
 
 function Connections() {
 
@@ -18,7 +19,7 @@ function Connections() {
     try {
 
       const res = await axios.get(
-        "http://localhost:5000/api/users/connections",
+        `${API_URL}/api/users/connections`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

@@ -9,7 +9,9 @@ import {
   FaEllipsisH, FaTrophy, FaCertificate,
 } from "react-icons/fa";
 
-const API = "http://localhost:5000";
+import { API_URL } from "../config";
+
+const API = API_URL;
 
 function timeAgo(date) {
   const s = Math.floor((Date.now() - new Date(date)) / 1000);

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 
 import { motion } from "framer-motion";
+import { API_URL } from "../config";
 
 function People() {
 
@@ -51,7 +52,7 @@ function People() {
     try {
 
       const res = await axios.get(
-        "http://localhost:5000/api/users"
+       `${API_URL}/api/users`
       );
 
       setUsers(res.data);
@@ -68,7 +69,7 @@ function People() {
     try {
 
       const res = await axios.post(
-        `http://localhost:5000/api/users/connect/${id}`,
+        `${API_URL}/api/users/connect/${id}`,
         {},
         {
           headers: {

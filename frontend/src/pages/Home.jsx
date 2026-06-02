@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 import axios from "axios";
+import { API_URL } from "../config";
 
 function Home() {
 
@@ -22,7 +23,7 @@ function Home() {
     try {
 
       const res = await axios.get(
-        "http://localhost:5000/api/users/stats/platform"
+        `${API_URL}/api/users/stats/platform`
       );
 
       setStats(res.data);
@@ -50,10 +51,10 @@ function Home() {
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-white/10 backdrop-blur-2xl rounded-[30px] p-10 shadow-2xl"
+          className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-2xl"
         >
 
-          <h1 className="text-5xl font-black leading-tight">
+          <h1 className="text-3xl font-black leading-tight">
             Welcome back,
             <br />
             <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
@@ -61,7 +62,7 @@ function Home() {
             </span>
           </h1>
 
-          <p className="mt-6 text-gray-300 text-lg max-w-2xl">
+          <p className="mt-6 text-gray-300 text-sm max-w-2xl">
             Build connections with students, mentors,
             recruiters, and professionals worldwide.
           </p>
@@ -91,7 +92,7 @@ function Home() {
 
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="bg-white/10 border border-white/10 backdrop-blur-xl rounded-3xl p-6"
+            className="bg-white/10 border border-white/10 backdrop-blur-xl rounded-2xl p-4"
           >
 
             <h2 className="text-5xl font-black text-cyan-400">

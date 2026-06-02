@@ -11,7 +11,9 @@ import {
 } from "react-icons/fa";
 import { motion } from "framer-motion";
 
-const API = "http://localhost:5000";
+import { API_URL } from "../config";
+
+const API = API_URL;
 
 // ─── TOGGLE ───────────────────────────────────────────────────────
 function Toggle({ value, onChange }) {
