@@ -13,7 +13,8 @@ const authRoutes = require("./src/routes/authRoutes");
 const User = require("./src/models/User");
 const notificationRoutes = require("./src/routes/notificationRoutes");
 const profileRoutes = require("./src/routes/profileRoutes");
-
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first");
 
 
 const connectDB = require("./src/config/db");
