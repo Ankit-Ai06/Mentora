@@ -6,7 +6,6 @@ const dns = require("dns").promises;
 // ─── NODEMAILER SETUP ─────────────────────────────────────────────
 let transporter = null;
 let emailReady = false;
-
 (async () => {
   try {
     const nodemailer = require("nodemailer");
@@ -15,8 +14,14 @@ let emailReady = false;
       return;
     }
     transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      family: 4,
     });
     await transporter.verify();
     emailReady = true;
@@ -27,7 +32,6 @@ let emailReady = false;
     console.warn("⚠️  Email transporter failed:", err.message);
   }
 })();
-
 // ─── IN-MEMORY OTP STORES ─────────────────────────────────────────
 const otpStore = new Map();
 const signupOtpStore = new Map();
