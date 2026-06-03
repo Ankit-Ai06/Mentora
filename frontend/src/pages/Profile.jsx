@@ -391,15 +391,6 @@ export default function Profile() {
                 {profile.requestSent ? "Request sent" : requesting ? "Sending..." : "Connect"}
               </button>
             )}
-            {isOwn && (
-              <button
-                type="button"
-                onClick={() => setTab("edit")}
-                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black flex items-center gap-2"
-              >
-                <FaEdit size={13} /> Edit Profile
-              </button>
-            )}
           </div>
         </div>
 
@@ -451,80 +442,76 @@ export default function Profile() {
             </div>
 
             {tab === "about" && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2 space-y-4">
-                  <Card>
-                    <SectionTitle icon={<FaEdit />} title="About" />
-                    {profile.about || profile.bio ? (
-                      <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{profile.about || profile.bio}</p>
-                    ) : (
-                      <EmptyText>No about details added yet.</EmptyText>
-                    )}
-                  </Card>
-                  <Card>
-                    <SectionTitle icon={<FaBriefcase />} title="Experience" />
-                    {asObjectArray(profile.experience).length ? (
-                      <div className="space-y-3">
-                        {asObjectArray(profile.experience).map((item, index) => (
-                          <div key={index} className="border-l-2 border-cyan-400/40 pl-3">
-                            <p className="font-bold text-white">{item.position || "Role"}</p>
-                            <p className="text-gray-400 text-sm">{item.company}</p>
-                            <p className="text-gray-600 text-xs">{item.duration}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyText>No experience added yet.</EmptyText>
-                    )}
-                  </Card>
-                </div>
-                <div className="space-y-4">
-                  <Card>
-                    <SectionTitle icon={<FaGraduationCap />} title="Education" />
-                    {asObjectArray(profile.education).length ? (
-                      <div className="space-y-3">
-                        {asObjectArray(profile.education).map((item, index) => (
-                          <div key={index}>
-                            <p className="font-bold text-white text-sm">{item.degree || "Degree"}</p>
-                            <p className="text-gray-400 text-sm">{item.college}</p>
-                            <p className="text-gray-600 text-xs">{item.year}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyText>No education added yet.</EmptyText>
-                    )}
-                  </Card>
-                  <Card>
-                    <SectionTitle icon={<FaCertificate />} title="Skills" />
-                    {profile.skills?.length ? (
-                      <div className="flex flex-wrap gap-2">
-                        {profile.skills.map((skill) => (
-                          <span key={skill} className="bg-white/5 border border-white/10 text-gray-300 px-3 py-1 rounded-full text-xs">
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyText>No skills added yet.</EmptyText>
-                    )}
-                  </Card>
-                  <Card>
-                    <SectionTitle icon={<FaTrophy />} title="Achievements" />
-                    {asObjectArray(profile.achievements).length ? (
-                      <div className="space-y-3">
-                        {asObjectArray(profile.achievements).map((item, index) => (
-                          <div key={index}>
-                            <p className="font-bold text-white text-sm">{item.title}</p>
-                            <p className="text-gray-500 text-xs">{item.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyText>No achievements added yet.</EmptyText>
-                    )}
-                  </Card>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+                <Card className="h-full">
+                  <SectionTitle icon={<FaEdit />} title="About" />
+                  {profile.about || profile.bio ? (
+                    <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{profile.about || profile.bio}</p>
+                  ) : (
+                    <EmptyText>No about details added yet.</EmptyText>
+                  )}
+                </Card>
+                <Card className="h-full">
+                  <SectionTitle icon={<FaBriefcase />} title="Experience" />
+                  {asObjectArray(profile.experience).length ? (
+                    <div className="space-y-3">
+                      {asObjectArray(profile.experience).map((item, index) => (
+                        <div key={index} className="border-l-2 border-cyan-400/40 pl-3">
+                          <p className="font-bold text-white">{item.position || "Role"}</p>
+                          <p className="text-gray-400 text-sm">{item.company}</p>
+                          <p className="text-gray-600 text-xs">{item.duration}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyText>No experience added yet.</EmptyText>
+                  )}
+                </Card>
+                <Card className="h-full">
+                  <SectionTitle icon={<FaGraduationCap />} title="Education" />
+                  {asObjectArray(profile.education).length ? (
+                    <div className="space-y-3">
+                      {asObjectArray(profile.education).map((item, index) => (
+                        <div key={index}>
+                          <p className="font-bold text-white text-sm">{item.degree || "Degree"}</p>
+                          <p className="text-gray-400 text-sm">{item.college}</p>
+                          <p className="text-gray-600 text-xs">{item.year}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyText>No education added yet.</EmptyText>
+                  )}
+                </Card>
+                <Card className="h-full">
+                  <SectionTitle icon={<FaCertificate />} title="Skills" />
+                  {profile.skills?.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {profile.skills.map((skill) => (
+                        <span key={skill} className="bg-white/5 border border-white/10 text-gray-300 px-3 py-1 rounded-full text-xs">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyText>No skills added yet.</EmptyText>
+                  )}
+                </Card>
+                <Card className="h-full">
+                  <SectionTitle icon={<FaTrophy />} title="Achievements" />
+                  {asObjectArray(profile.achievements).length ? (
+                    <div className="space-y-3">
+                      {asObjectArray(profile.achievements).map((item, index) => (
+                        <div key={index}>
+                          <p className="font-bold text-white text-sm">{item.title}</p>
+                          <p className="text-gray-500 text-xs">{item.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyText>No achievements added yet.</EmptyText>
+                  )}
+                </Card>
               </div>
             )}
 
@@ -644,6 +631,9 @@ export default function Profile() {
             )}
           </>
         )}
+        <footer className="mt-10 border-t border-white/10 pt-5 text-center text-sm text-gray-500">
+          Made with care by Mentora. Keep learning, keep showing up, and let your people find you.
+        </footer>
       </div>
     </Layout>
   );

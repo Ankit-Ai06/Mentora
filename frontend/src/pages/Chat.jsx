@@ -255,6 +255,8 @@ function Chat() {
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
   const selectedUserRef = useRef(null);
+  const refreshBadges = () =>
+    window.dispatchEvent(new Event("mentora:refresh-badges"));
 
   // keep ref in sync so socket callbacks have current value
   useEffect(() => { selectedUserRef.current = selectedUser; }, [selectedUser]);
@@ -281,13 +283,21 @@ function Chat() {
           senderId: message.senderId,
           receiverId: currentUser._id,
         });
+        refreshBadges();
       }
 
       // update sidebar last message
       setUsers((prevUsers) => {
         const updated = prevUsers.map((u) => {
           if (u._id === message.senderId || u._id === message.receiverId) {
-            return { ...u, lastMessage: message.text, updatedAt: new Date() };
+            const isActive = active?._id === u._id;
+            const isIncoming = message.senderId === u._id;
+            return {
+              ...u,
+              lastMessage: message.unsent ? "This message was unsent" : message.text,
+              unreadCount: isIncoming && !isActive ? (u.unreadCount || 0) + 1 : 0,
+              updatedAt: new Date(),
+            };
           }
           return u;
         });
@@ -392,6 +402,7 @@ function Chat() {
         senderId: userId,
         receiverId: currentUser._id,
       });
+      refreshBadges();
     } catch (err) {
       console.log(err);
     }
@@ -399,7 +410,11 @@ function Chat() {
 
   // ── SELECT USER ────────────────────────────────────────────────
   const selectUser = (user) => {
-    setSelectedUser(user);
+    const cleanUser = { ...user, unreadCount: 0 };
+    setSelectedUser(cleanUser);
+    setUsers((prev) =>
+      prev.map((u) => (u._id === user._id ? { ...u, unreadCount: 0 } : u))
+    );
     fetchMessages(user._id);
     setReplyingTo(null);
     setIsTyping(false);
@@ -437,7 +452,7 @@ function Chat() {
       setUsers((prev) => {
         const updated = prev.map((u) =>
           u._id === selectedUser._id
-            ? { ...u, lastMessage: saved.text, updatedAt: new Date() }
+            ? { ...u, lastMessage: saved.text, unreadCount: 0, updatedAt: new Date() }
             : u
         );
         updated.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
@@ -606,6 +621,8 @@ function Chat() {
                   className={`flex items-center gap-4 p-4 rounded-3xl cursor-pointer transition-all duration-300 ${
                     selectedUser?._id === user._id
                       ? "bg-cyan-500/20 border border-cyan-400/30"
+                      : user.unreadCount > 0
+                      ? "bg-white/15 border border-cyan-400/20"
                       : "hover:bg-white/10"
                   }`}
                 >
@@ -630,12 +647,22 @@ function Chat() {
                   </div>
 
                   <div className="flex-1 overflow-hidden">
-                    <h2 className="font-bold text-white truncate">{user.fullName}</h2>
-                    <p className="text-gray-400 text-xs truncate">
-                      {user.lastMessage ||
-                        (canShowOnline(user) && user.isOnline
-                          ? "Online"
-                          : "Start conversation")}
+                    <div className="flex items-center gap-2">
+                      <h2 className={`truncate ${user.unreadCount > 0 ? "font-black text-white" : "font-bold text-white"}`}>
+                        {user.fullName}
+                      </h2>
+                      {user.unreadCount > 0 && (
+                        <span className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">
+                          {user.unreadCount > 9 ? "9+" : user.unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-xs truncate ${user.unreadCount > 0 ? "font-black text-white" : "text-gray-400"}`}>
+                      {user.lastMessage
+                        ? user.lastMessage
+                        : canShowOnline(user) && user.isOnline
+                        ? "Online"
+                        : "Start conversation"}
                     </p>
                   </div>
                 </div>

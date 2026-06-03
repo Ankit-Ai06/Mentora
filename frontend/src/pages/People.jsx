@@ -103,7 +103,7 @@ function People() {
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="bg-white/10 border border-white/10 rounded-2xl px-5 py-2 outline-none text-white"
+              className="mentora-select bg-white/10 border border-white/10 rounded-2xl px-5 py-2 outline-none text-white"
             >
               <option value="all">All</option>
               <option value="Student">Students</option>

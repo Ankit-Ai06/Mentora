@@ -28,12 +28,16 @@ function Notifications() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const refreshBadges = () =>
+    window.dispatchEvent(new Event("mentora:refresh-badges"));
+
   const markRead = async (id) => {
     try {
       await axios.put(`${API_URL}/api/notifications/read/${id}`, {}, { headers });
       setNotifications((prev) =>
         prev.map((n) => (n._id === id ? { ...n, read: true } : n))
       );
+      refreshBadges();
     } catch (err) {
       console.log(err);
     }
@@ -58,15 +62,6 @@ function Notifications() {
     setLoadingId("");
   };
 
-  const markAllRead = async () => {
-    try {
-      await axios.put(`${API_URL}/api/notifications/read-all`, {}, { headers });
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
   return (
     <Layout>
       <div className="max-w-3xl mx-auto py-5">
@@ -80,15 +75,6 @@ function Notifications() {
             </p>
           </div>
 
-          {notifications.some((n) => !n.read) && (
-            <button
-              type="button"
-              onClick={markAllRead}
-              className="px-4 py-2 rounded-2xl bg-white/10 hover:bg-white/20 text-sm font-bold text-white"
-            >
-              Mark all read
-            </button>
-          )}
         </div>
 
         <div className="space-y-3">

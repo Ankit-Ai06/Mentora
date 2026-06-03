@@ -334,7 +334,41 @@ const getConnections = async (req, res) => {
         "fullName email role profilePicture profileImage headline isOnline lastSeen preferences"
       );
 
-    res.json(user.connections);
+    const connections = await Promise.all(
+      user.connections.map(async (connection) => {
+        const connectionId = connection._id.toString();
+
+        const lastMessage = await Message.findOne({
+          $or: [
+            { senderId: req.user.id, receiverId: connectionId },
+            { senderId: connectionId, receiverId: req.user.id },
+          ],
+        })
+          .sort({ createdAt: -1 })
+          .lean();
+
+        const unreadCount = await Message.countDocuments({
+          senderId: connectionId,
+          receiverId: req.user.id,
+          status: { $ne: "seen" },
+        });
+
+        return {
+          ...connection.toObject(),
+          lastMessage: lastMessage?.unsent
+            ? "This message was unsent"
+            : lastMessage?.text || "",
+          unreadCount,
+          updatedAt: lastMessage?.createdAt || connection.updatedAt,
+        };
+      })
+    );
+
+    connections.sort(
+      (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
+    );
+
+    res.json(connections);
 
   } catch (error) {
 

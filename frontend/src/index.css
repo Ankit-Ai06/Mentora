@@ -1,1 +1,63 @@
 @import "tailwindcss";
+
+* {
+  scroll-behavior: smooth;
+}
+
+.mentora-app {
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.mentora-app * {
+  transition-property: background-color, border-color, color, opacity, transform, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: ease;
+}
+
+.mentora-light .text-white,
+.mentora-light .text-gray-200,
+.mentora-light .text-gray-300 {
+  color: #0f172a !important;
+}
+
+.mentora-light .text-gray-400,
+.mentora-light .text-gray-500,
+.mentora-light .text-gray-600 {
+  color: #475569 !important;
+}
+
+.mentora-light .bg-white\/5 {
+  background-color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.mentora-light .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.mentora-light .border-white\/5,
+.mentora-light .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+.mentora-light input,
+.mentora-light textarea,
+.mentora-light select {
+  color: #0f172a !important;
+}
+
+.mentora-light input::placeholder,
+.mentora-light textarea::placeholder {
+  color: #64748b !important;
+}
+
+.mentora-select,
+.mentora-select option {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
+.mentora-light .mentora-select,
+.mentora-light .mentora-select option {
+  background-color: #ffffff;
+  color: #0f172a !important;
+}

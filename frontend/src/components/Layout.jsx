@@ -49,7 +49,11 @@ function Layout({ children }) {
 
     fetchBadges();
     const id = setInterval(fetchBadges, 30000);
-    return () => clearInterval(id);
+    window.addEventListener("mentora:refresh-badges", fetchBadges);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("mentora:refresh-badges", fetchBadges);
+    };
   }, [location.pathname, user?._id]);
 
   const handleLogout = () => {
@@ -68,7 +72,7 @@ function Layout({ children }) {
   ];
 
   return (
-    <div className={`min-h-screen ${darkMode ? "bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white" : "bg-slate-100 text-slate-950"} flex overflow-hidden`}>
+    <div className={`mentora-app ${darkMode ? "mentora-dark bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white" : "mentora-light bg-slate-100 text-slate-950"} min-h-screen flex overflow-hidden`}>
 
       {/* ── SIDEBAR ── */}
       <motion.div
