@@ -29,7 +29,7 @@ const otpHtml = (otpCode, heading, sub) => `
 
 // ─── SEND EMAIL HELPER ────────────────────────────────────────────
 const trySendEmail = async (to, subject, html, otpCode) => {
-  await resend.emails.send({
+  const response = await resend.emails.send({
     from: process.env.EMAIL_FROM || "Mentora <onboarding@resend.dev>",
     to,
     subject,
@@ -37,6 +37,7 @@ const trySendEmail = async (to, subject, html, otpCode) => {
     text: `Your Mentora OTP code is: ${otpCode}. It expires in 10 minutes.`,
   });
 
+  console.log("RESEND RESPONSE:", response);
   console.log(`✅ OTP email sent to ${to}`);
   return true;
 };
