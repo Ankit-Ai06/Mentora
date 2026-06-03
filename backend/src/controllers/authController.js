@@ -37,6 +37,11 @@ const trySendEmail = async (to, subject, html, otpCode) => {
     text: `Your Mentora OTP code is: ${otpCode}. It expires in 10 minutes.`,
   });
 
+  if (response.error) {
+    console.log("❌ Resend Email Error:", response.error.message);
+    throw new Error(response.error.message);
+  }
+
   console.log("RESEND RESPONSE:", response);
   console.log(`✅ OTP email sent to ${to}`);
   return true;
