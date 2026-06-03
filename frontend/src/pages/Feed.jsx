@@ -3,12 +3,14 @@ import Layout from "../components/Layout";
 import axios from "axios";
 import {
   FaHeart, FaRegHeart, FaComment, FaShare,
-  FaImage, FaTimes, FaEllipsisH, FaPaperPlane,
+  FaImage, FaEllipsisH, FaPaperPlane,
 } from "react-icons/fa";
 
 import { API_URL } from "../config";
 
 const API = API_URL;
+const profileImageSrc = (src) =>
+  src?.startsWith("http") ? src : `${API}/uploads/${src}`;
 
 function timeAgo(date) {
   const s = Math.floor((Date.now() - new Date(date)) / 1000);
@@ -22,7 +24,7 @@ function timeAgo(date) {
 function Avatar({ user, size = "md" }) {
   const sz = size === "sm" ? "w-8 h-8 text-xs" : size === "lg" ? "w-12 h-12 text-base" : "w-10 h-10 text-sm";
   const src = user?.profileImage || user?.profilePicture;
-  if (src) return <img src={`${API}/uploads/${src}`} alt="" className={`${sz} rounded-full object-cover shrink-0`} />;
+  if (src) return <img src={profileImageSrc(src)} alt="" className={`${sz} rounded-full object-cover shrink-0`} />;
   return (
     <div className={`${sz} rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center font-black text-slate-900 shrink-0`}>
       {user?.fullName?.charAt(0)}
@@ -196,7 +198,11 @@ export default function Feed() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchPosts(); }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLike = async (postId) => {
     try {

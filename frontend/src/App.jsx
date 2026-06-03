@@ -28,6 +28,7 @@ function App() {
         <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
         <Route path="/people" element={<ProtectedRoute><People /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/profile/:id" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
         <Route path="/connections" element={<ProtectedRoute><Connections /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

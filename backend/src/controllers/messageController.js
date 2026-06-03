@@ -1,4 +1,5 @@
 const Message = require("../models/Message");
+const Notification = require("../models/Notification");
 
 // ─── SEND MESSAGE ────────────────────────────────────────────────
 const sendMessage = async (req, res) => {
@@ -16,10 +17,30 @@ const sendMessage = async (req, res) => {
     // populate replyTo so the frontend gets the quoted text immediately
     await newMessage.populate("replyTo", "text senderId unsent");
 
+    await Notification.create({
+      receiver: receiverId,
+      sender: senderId,
+      type: "message",
+      text: "sent you a message",
+    });
+
     res.status(201).json(newMessage);
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Message send failed" });
+  }
+};
+
+const getUnreadCount = async (req, res) => {
+  try {
+    const count = await Message.countDocuments({
+      receiverId: req.params.userId,
+      status: { $ne: "seen" },
+    });
+
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch unread messages" });
   }
 };
 
@@ -142,4 +163,5 @@ module.exports = {
   forwardMessage,
   markDelivered,
   markSeen,
+  getUnreadCount,
 };

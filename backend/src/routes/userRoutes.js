@@ -9,7 +9,11 @@ const {
   sendRequest,
   getRequests,
   acceptRequest,
+  ignoreRequest,
   getConnections,
+  updateSettings,
+  exportMyData,
+  deleteMe,
   getPlatformStats,
 } = require("../controllers/userController");
 
@@ -33,10 +37,34 @@ router.get(
   getRequests
 );
 
+router.put(
+  "/settings",
+  protect,
+  updateSettings
+);
+
+router.get(
+  "/export",
+  protect,
+  exportMyData
+);
+
+router.delete(
+  "/me",
+  protect,
+  deleteMe
+);
+
 router.post(
   "/accept/:id",
   protect,
   acceptRequest
+);
+
+router.post(
+  "/ignore/:id",
+  protect,
+  ignoreRequest
 );
 
 router.get(

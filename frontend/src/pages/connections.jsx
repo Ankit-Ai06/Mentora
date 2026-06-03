@@ -1,11 +1,14 @@
 import Layout from "../components/Layout";
 
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 import axios from "axios";
 
 import { motion } from "framer-motion";
 import { API_URL } from "../config";
+const profileImageSrc = (src) =>
+  src?.startsWith("http") ? src : `${API_URL}/uploads/${src}`;
 
 function Connections() {
 
@@ -37,8 +40,10 @@ function Connections() {
 
   useEffect(() => {
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchConnections();
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -62,22 +67,35 @@ function Connections() {
               className="bg-white/10 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-xl"
             >
 
-              <div className="w-16 h-16 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center text-xl font-black mx-auto">
-                {user.fullName?.charAt(0)}
-              </div>
+              <Link to={`/profile/${user._id}`} className="relative block w-16 h-16 mx-auto">
+                {user.profileImage || user.profilePicture ? (
+                  <img
+                    src={profileImageSrc(user.profileImage || user.profilePicture)}
+                    alt={user.fullName}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center text-xl font-black">
+                    {user.fullName?.charAt(0)}
+                  </div>
+                )}
+                <span className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-slate-900 ${
+                  user.isOnline ? "bg-green-400" : "bg-gray-500"
+                }`} />
+              </Link>
 
               <div className="text-center mt-6">
 
-                <h2 className="text-base font-bold">
+                <Link to={`/profile/${user._id}`} className="text-base font-bold hover:text-cyan-300">
                   {user.fullName}
-                </h2>
+                </Link>
 
                 <p className="text-gray-400 mt-2">
                   {user.email}
                 </p>
 
                 <p className="text-cyan-400 mt-1">
-                  {user.role}
+                  {user.isOnline ? "Online" : user.role}
                 </p>
 
               </div>

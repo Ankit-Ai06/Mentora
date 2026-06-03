@@ -9,12 +9,18 @@ require("../middleware/uploadMiddleware");
 const {
 getProfile,
 updateProfile,
+getPublicProfile,
 viewProfile
 }=require("../controllers/profileController");
+
+const uploadedImageUrl = (req) =>
+`${process.env.BACKEND_URL || `${req.protocol}://${req.get("host")}`}/uploads/${req.file.filename}`;
 
 router.get("/",protect,getProfile);
 
 router.put("/",protect,updateProfile);
+
+router.get("/:id",protect,getPublicProfile);
 
 router.post(
 "/view/:id",
@@ -29,7 +35,7 @@ async(req,res)=>{
 
 res.json({
 image:
-`http://localhost:5000/uploads/${req.file.filename}`
+uploadedImageUrl(req)
 });
 
 }
@@ -42,7 +48,7 @@ async(req,res)=>{
 
 res.json({
 image:
-`${process.env.BACKEND_URL}/uploads/${req.file.filename}`
+uploadedImageUrl(req)
 });
 
 }

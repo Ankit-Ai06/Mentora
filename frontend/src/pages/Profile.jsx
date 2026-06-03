@@ -1,509 +1,685 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import axios from "axios";
 import Layout from "../components/Layout";
 import {
-  FaEdit, FaPlus, FaGithub, FaLinkedin, FaGlobe,
-  FaGraduationCap, FaBriefcase, FaMapMarkerAlt,
-  FaCamera, FaCheck, FaTimes, FaTrash,
-  FaHeart, FaRegHeart, FaComment, FaShare,
-  FaEllipsisH, FaTrophy, FaCertificate,
+  FaBriefcase,
+  FaCamera,
+  FaCertificate,
+  FaCheck,
+  FaEdit,
+  FaGithub,
+  FaGlobe,
+  FaGraduationCap,
+  FaHeart,
+  FaLinkedin,
+  FaLock,
+  FaMapMarkerAlt,
+  FaPaperPlane,
+  FaPlus,
+  FaRegHeart,
+  FaTimes,
+  FaTrash,
+  FaTrophy,
+  FaUserPlus,
 } from "react-icons/fa";
-
 import { API_URL } from "../config";
 
 const API = API_URL;
 
 function timeAgo(date) {
-  const s = Math.floor((Date.now() - new Date(date)) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  const seconds = Math.floor((Date.now() - new Date(date)) / 1000);
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-// ─── SECTION CARD ─────────────────────────────────────────────────
+function imageSrc(src) {
+  if (!src) return "";
+  return src.startsWith("http") ? src : `${API}/uploads/${src}`;
+}
+
+function asObjectArray(value) {
+  return Array.isArray(value)
+    ? value.filter((item) => item && typeof item === "object" && !Array.isArray(item))
+    : [];
+}
+
 function Card({ children, className = "" }) {
   return (
-    <div className={`bg-white/5 border border-white/10 rounded-2xl p-4 ${className}`}>
+    <div className={`bg-white/5 border border-white/10 rounded-2xl p-5 ${className}`}>
       {children}
     </div>
   );
 }
 
-// ─── SECTION TITLE ────────────────────────────────────────────────
-function SectionTitle({ icon, title, onAdd }) {
+function SectionTitle({ icon, title }) {
   return (
-    <div className="flex items-center justify-between mb-3">
-      <div className="flex items-center gap-2">
-        <span className="text-cyan-400 text-sm">{icon}</span>
-        <h3 className="font-bold text-white text-sm uppercase tracking-wider">{title}</h3>
-      </div>
-      {onAdd && (
-        <button onClick={onAdd} className="w-6 h-6 rounded-lg bg-white/10 hover:bg-cyan-400/20 hover:text-cyan-400 flex items-center justify-center transition-all text-gray-400">
-          <FaPlus size={9} />
-        </button>
-      )}
+    <div className="flex items-center gap-2 mb-3">
+      <span className="text-cyan-400 text-sm">{icon}</span>
+      <h3 className="font-black text-white text-sm uppercase tracking-wider">{title}</h3>
     </div>
   );
 }
 
-// ─── INLINE EDIT INPUT ────────────────────────────────────────────
-function EditInput({ value, onChange, placeholder, multiline = false, className = "" }) {
-  const cls = `w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm placeholder-gray-600 outline-none focus:border-cyan-400/50 transition-colors ${className}`;
-  if (multiline) return <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={3} className={cls + " resize-none"} />;
-  return <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={cls} />;
+function EmptyText({ children }) {
+  return <p className="text-gray-500 text-sm">{children}</p>;
 }
 
-// ─── POST MINI CARD ───────────────────────────────────────────────
-function PostMiniCard({ post, onDelete, currentUserId }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const liked = post.likes?.includes(currentUserId);
+function EditInput({ value, onChange, placeholder, multiline = false }) {
+  const className =
+    "w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm placeholder-gray-600 outline-none focus:border-cyan-400/50 transition-colors";
+
+  if (multiline) {
+    return (
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={4}
+        className={`${className} resize-none`}
+      />
+    );
+  }
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-3 hover:border-white/20 transition-all">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <p className="text-gray-200 text-sm leading-relaxed line-clamp-3 flex-1">{post.content}</p>
-        <div className="relative shrink-0">
-          <button onClick={() => setMenuOpen(!menuOpen)} className="text-gray-600 hover:text-white p-1 transition-colors">
-            <FaEllipsisH size={12} />
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+}
+
+function PostCard({ post, currentUserId, onDelete }) {
+  const liked = post.likes?.includes(currentUserId);
+  const isOwn = post.user?._id === currentUserId || post.user === currentUserId;
+
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+        {isOwn && (
+          <button
+            type="button"
+            onClick={() => onDelete(post._id)}
+            className="text-gray-500 hover:text-red-400 p-2 rounded-xl hover:bg-red-500/10"
+            title="Delete post"
+          >
+            <FaTrash size={13} />
           </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-6 bg-slate-800 border border-white/10 rounded-xl shadow-xl py-1.5 min-w-[110px] z-10">
-              <button onClick={() => { onDelete(post._id); setMenuOpen(false); }}
-                className="w-full text-left px-3 py-1.5 text-red-400 hover:bg-white/5 text-xs transition-colors flex items-center gap-2">
-                <FaTrash size={10} /> Delete
-              </button>
-            </div>
-          )}
-        </div>
+        )}
       </div>
-      {post.image && <img src={post.image} alt="" className="w-full h-32 object-cover rounded-xl mb-2" />}
-      <div className="flex items-center justify-between text-gray-600 text-xs">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1">
-            {liked ? <FaHeart className="text-red-400" size={11} /> : <FaRegHeart size={11} />}
-            {post.likes?.length || 0}
-          </span>
-        </div>
+      {post.image && (
+        <img src={post.image} alt="" className="mt-4 w-full max-h-96 object-cover rounded-2xl" />
+      )}
+      <div className="flex items-center justify-between text-xs text-gray-500 mt-4 pt-3 border-t border-white/5">
+        <span className="flex items-center gap-1">
+          {liked ? <FaHeart className="text-red-400" /> : <FaRegHeart />}
+          {post.likes?.length || 0}
+        </span>
         <span>{timeAgo(post.createdAt)}</span>
       </div>
-    </div>
+    </Card>
   );
 }
 
-// ─── MAIN PROFILE ─────────────────────────────────────────────────
 export default function Profile() {
+  const { id } = useParams();
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const token = localStorage.getItem("token");
+  const isOwn = !id || id === currentUser._id;
+  const headers = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
-  const [tab, setTab] = useState("about"); // about | posts
+  const [tab, setTab] = useState("about");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
-  // editable fields
-  const [headline, setHeadline] = useState("");
-  const [location, setLocation] = useState("");
-  const [about, setAbout] = useState("");
-  const [github, setGithub] = useState("");
-  const [linkedin, setLinkedin] = useState("");
-  const [portfolio, setPortfolio] = useState("");
-  const [skills, setSkills] = useState([]);
+  const [form, setForm] = useState({
+    headline: "",
+    location: "",
+    about: "",
+    github: "",
+    linkedin: "",
+    portfolio: "",
+    skills: [],
+    education: [],
+    experience: [],
+    achievements: [],
+  });
   const [newSkill, setNewSkill] = useState("");
-  const [education, setEducation] = useState([]);
-  const [experience, setExperience] = useState([]);
-  const [achievements, setAchievements] = useState([]);
 
-  const headers = { Authorization: `Bearer ${token}` };
+  const setField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
-  // ── Load profile ────────────────────────────────────────────────
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [pRes, postRes] = await Promise.all([
+  const syncForm = (data) => {
+    setForm({
+      headline: data.headline || "",
+      location: data.location || "",
+      about: data.about || data.bio || "",
+      github: data.github || data.socialLinks?.github || "",
+      linkedin: data.linkedin || data.socialLinks?.linkedin || "",
+      portfolio: data.socialLinks?.portfolio || "",
+      skills: Array.isArray(data.skills) ? data.skills.filter((s) => typeof s === "string") : [],
+      education: asObjectArray(data.education),
+      experience: asObjectArray(data.experience),
+      achievements: asObjectArray(data.achievements),
+    });
+  };
+
+  const loadProfile = async () => {
+    try {
+      if (isOwn) {
+        const [profileRes, postRes] = await Promise.all([
           axios.get(`${API}/api/profile`, { headers }),
           axios.get(`${API}/api/posts/mine`, { headers }),
         ]);
-        const d = pRes.data;
-        setProfile(d);
-        setHeadline(d.headline || "");
-        setLocation(d.location || "");
-        setAbout(d.about || d.bio || "");
-        setGithub(d.github || d.socialLinks?.github || "");
-        setLinkedin(d.linkedin || d.socialLinks?.linkedin || "");
-        setPortfolio(d.socialLinks?.portfolio || "");
-        setSkills(Array.isArray(d.skills) ? d.skills.filter(s => typeof s === "string") : []);
-        setEducation(Array.isArray(d.education)
-          ? d.education.filter(e => typeof e === "object" && e !== null && !Array.isArray(e))
-          : []);
-        setExperience(Array.isArray(d.experience)
-          ? d.experience.filter(e => typeof e === "object" && e !== null)
-          : []);
-        setAchievements(Array.isArray(d.achievements)
-          ? d.achievements.filter(a => typeof a === "object" && a !== null)
-          : []);
-        setPosts(postRes.data);
-      } catch (err) { console.log(err); }
-    };
-    load();
-  }, []);
+        setProfile({ ...profileRes.data, canViewFullProfile: true });
+        setPosts(Array.isArray(postRes.data) ? postRes.data : []);
+        syncForm(profileRes.data);
+      } else {
+        const res = await axios.get(`${API}/api/profile/${id}`, { headers });
+        setProfile(res.data);
+        setPosts(Array.isArray(res.data.posts) ? res.data.posts : []);
+        if (res.data.canViewFullProfile) syncForm(res.data);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
-  // ── Save profile ────────────────────────────────────────────────
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   const save = async () => {
     setSaving(true);
     try {
-      await axios.put(`${API}/api/profile`, {
-        headline, location, about, github, linkedin,
-        skills,
-        education: education.filter(e => e.college || e.degree),
-        experience: experience.filter(e => e.company || e.position),
-        achievements: achievements.filter(a => a.title),
-        socialLinks: { github, linkedin, portfolio },
-      }, { headers });
+      const res = await axios.put(
+        `${API}/api/profile`,
+        {
+          headline: form.headline,
+          location: form.location,
+          about: form.about,
+          github: form.github,
+          linkedin: form.linkedin,
+          socialLinks: {
+            github: form.github,
+            linkedin: form.linkedin,
+            portfolio: form.portfolio,
+          },
+          skills: form.skills,
+          education: form.education.filter((item) => item.college || item.degree || item.year),
+          experience: form.experience.filter((item) => item.company || item.position || item.duration),
+          achievements: form.achievements.filter((item) => item.title || item.description),
+        },
+        { headers }
+      );
+      setProfile({ ...res.data, canViewFullProfile: true });
+      localStorage.setItem("user", JSON.stringify(res.data));
       setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    } catch (err) { console.log(err); }
+      setTimeout(() => setSaved(false), 2000);
+      setTab("about");
+    } catch (err) {
+      console.log(err);
+    }
     setSaving(false);
   };
 
-  // ── Upload image ────────────────────────────────────────────────
   const uploadImage = async (file, type) => {
     const fd = new FormData();
     fd.append("image", file);
+
     try {
       const res = await axios.post(`${API}/api/profile/upload-${type}`, fd, {
         headers: { ...headers, "Content-Type": "multipart/form-data" },
       });
-      if (type === "profile") setProfile(p => ({ ...p, profilePicture: file.name, profileImage: file.name }));
-      if (type === "cover") setProfile(p => ({ ...p, coverPicture: file.name, coverImage: file.name }));
-      return res.data.image;
-    } catch (err) { console.log(err); }
+      const image = res.data.image;
+      const payload =
+        type === "profile"
+          ? { profilePicture: image, profileImage: image }
+          : { coverPicture: image, coverImage: image };
+      const update = await axios.put(`${API}/api/profile`, payload, { headers });
+      setProfile({ ...update.data, canViewFullProfile: true });
+      localStorage.setItem("user", JSON.stringify(update.data));
+    } catch (err) {
+      console.log(err);
+    }
   };
 
-  // ── Delete post ─────────────────────────────────────────────────
+  const addSkill = () => {
+    const skill = newSkill.trim();
+    if (!skill || form.skills.includes(skill)) return;
+    setField("skills", [...form.skills, skill]);
+    setNewSkill("");
+  };
+
+  const updateArray = (key, index, patch) => {
+    setField(
+      key,
+      form[key].map((item, i) => (i === index ? { ...item, ...patch } : item))
+    );
+  };
+
+  const removeArray = (key, index) => {
+    setField(
+      key,
+      form[key].filter((_, i) => i !== index)
+    );
+  };
+
   const deletePost = async (postId) => {
     try {
       await axios.delete(`${API}/api/posts/${postId}`, { headers });
-      setPosts(prev => prev.filter(p => p._id !== postId));
-    } catch (err) { console.log(err); }
+      setPosts((prev) => prev.filter((post) => post._id !== postId));
+    } catch (err) {
+      console.log(err);
+    }
   };
 
-  // ── Skills ──────────────────────────────────────────────────────
-  const addSkill = () => {
-    const s = newSkill.trim();
-    if (s && !skills.includes(s)) { setSkills(p => [...p, s]); setNewSkill(""); }
+  const sendRequest = async () => {
+    if (!profile?._id) return;
+    setRequesting(true);
+    try {
+      await axios.post(`${API}/api/users/connect/${profile._id}`, {}, { headers });
+      setProfile((prev) => ({ ...prev, requestSent: true }));
+    } catch (err) {
+      console.log(err);
+    }
+    setRequesting(false);
   };
-  const removeSkill = (i) => setSkills(p => p.filter((_, idx) => idx !== i));
 
-  // ── Education ──────────────────────────────────────────────────
-  const addEdu = () => setEducation(p => [...p, { college: "", degree: "", year: "" }]);
-  const setEdu = (i, k, v) => setEducation(p => p.map((e, idx) => idx === i ? { ...e, [k]: v } : e));
-  const removeEdu = (i) => setEducation(p => p.filter((_, idx) => idx !== i));
+  if (!profile) {
+    return (
+      <Layout>
+        <div className="h-[70vh] flex items-center justify-center text-gray-500">Loading profile...</div>
+      </Layout>
+    );
+  }
 
-  // ── Experience ─────────────────────────────────────────────────
-  const addExp = () => setExperience(p => [...p, { company: "", position: "", duration: "" }]);
-  const setExp = (i, k, v) => setExperience(p => p.map((e, idx) => idx === i ? { ...e, [k]: v } : e));
-  const removeExp = (i) => setExperience(p => p.filter((_, idx) => idx !== i));
-
-  // ── Achievements ───────────────────────────────────────────────
-  const addAch = () => setAchievements(p => [...p, { title: "", description: "" }]);
-  const setAch = (i, k, v) => setAchievements(p => p.map((a, idx) => idx === i ? { ...a, [k]: v } : a));
-  const removeAch = (i) => setAchievements(p => p.filter((_, idx) => idx !== i));
-
-  const coverSrc = profile?.coverPicture || profile?.coverImage;
-  const avatarSrc = profile?.profilePicture || profile?.profileImage;
+  const cover = imageSrc(profile.coverPicture || profile.coverImage);
+  const avatar = imageSrc(profile.profilePicture || profile.profileImage);
+  const visible = profile.canViewFullProfile !== false;
+  const links = {
+    github: profile.github || profile.socialLinks?.github,
+    linkedin: profile.linkedin || profile.socialLinks?.linkedin,
+    portfolio: profile.socialLinks?.portfolio,
+  };
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto pb-10">
-
-        {/* ── COVER + AVATAR ── */}
-        <div className="relative mb-14">
-          {/* Cover */}
-          <div className="relative h-36 rounded-2xl overflow-hidden bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-white/10">
-            {coverSrc && (
-              <img src={coverSrc.startsWith("http") ? coverSrc : `${API}/uploads/${coverSrc}`}
-                alt="" className="w-full h-full object-cover" />
-            )}
-            <label className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 p-2 rounded-xl cursor-pointer transition-colors">
-              <FaCamera size={12} className="text-white" />
-              <input type="file" hidden accept="image/*" onChange={e => e.target.files[0] && uploadImage(e.target.files[0], "cover")} />
-            </label>
-          </div>
-
-          {/* Avatar */}
-          <div className="absolute -bottom-10 left-4 flex items-end gap-3">
-            <div className="relative">
-              {avatarSrc ? (
-                <img src={avatarSrc.startsWith("http") ? avatarSrc : `${API}/uploads/${avatarSrc}`}
-                  alt="" className="w-20 h-20 rounded-full border-4 border-slate-950 object-cover" />
-              ) : (
-                <div className="w-20 h-20 rounded-full border-4 border-slate-950 bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-2xl font-black text-slate-900">
-                  {currentUser?.fullName?.charAt(0)}
-                </div>
-              )}
-              <label className="absolute bottom-0 right-0 w-6 h-6 bg-cyan-400 hover:bg-cyan-300 rounded-full flex items-center justify-center cursor-pointer transition-colors shadow-lg">
-                <FaCamera size={9} className="text-slate-900" />
-                <input type="file" hidden accept="image/*" onChange={e => e.target.files[0] && uploadImage(e.target.files[0], "profile")} />
+      <div className="w-full max-w-7xl mx-auto pb-10">
+        <div className="relative mb-16">
+          <div className="relative h-52 md:h-64 rounded-2xl overflow-hidden bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-white/10">
+            {cover && <img src={cover} alt="" className="w-full h-full object-cover" />}
+            {isOwn && (
+              <label className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 p-3 rounded-xl cursor-pointer transition-colors">
+                <FaCamera size={13} className="text-white" />
+                <input
+                  type="file"
+                  hidden
+                  accept="image/*"
+                  onChange={(e) => e.target.files[0] && uploadImage(e.target.files[0], "cover")}
+                />
               </label>
-            </div>
-          </div>
-        </div>
-
-        {/* ── NAME + HEADLINE ── */}
-        <div className="px-1 mb-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-black text-white leading-none">{currentUser?.fullName}</h1>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                {currentUser?.role && (
-                  <span className="bg-cyan-400/15 text-cyan-300 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                    {currentUser.role}
-                  </span>
-                )}
-                {location && (
-                  <span className="flex items-center gap-1 text-gray-500 text-xs">
-                    <FaMapMarkerAlt size={9} /> {location}
-                  </span>
-                )}
-              </div>
-              {headline && <p className="text-gray-400 text-sm mt-1">{headline}</p>}
-            </div>
-
-            {/* Save button */}
-            <button onClick={save} disabled={saving}
-              className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                saved ? "bg-green-500/20 text-green-400 border border-green-400/30"
-                      : "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-900 hover:scale-105 shadow-lg shadow-cyan-500/20"
-              } disabled:opacity-60`}>
-              {saved ? <><FaCheck size={10} /> Saved</> : saving ? "Saving…" : <><FaEdit size={10} /> Save</>}
-            </button>
-          </div>
-
-          {/* Stats row */}
-          <div className="flex items-center gap-5 mt-3 pt-3 border-t border-white/5">
-            {[
-              { label: "Posts", value: posts.length },
-              { label: "Connections", value: profile?.connections?.length || 0 },
-              { label: "Profile Views", value: profile?.profileViews || 0 },
-            ].map(({ label, value }) => (
-              <div key={label} className="text-center">
-                <p className="text-white font-black text-base leading-none">{value}</p>
-                <p className="text-gray-600 text-[10px] mt-0.5">{label}</p>
-              </div>
-            ))}
-
-            {/* Social links */}
-            <div className="flex items-center gap-2 ml-auto">
-              {(github || profile?.github) && (
-                <a href={github || profile?.github} target="_blank" rel="noreferrer"
-                  className="text-gray-500 hover:text-white transition-colors">
-                  <FaGithub size={16} />
-                </a>
-              )}
-              {(linkedin || profile?.linkedin) && (
-                <a href={linkedin || profile?.linkedin} target="_blank" rel="noreferrer"
-                  className="text-gray-500 hover:text-cyan-400 transition-colors">
-                  <FaLinkedin size={16} />
-                </a>
-              )}
-              {portfolio && (
-                <a href={portfolio} target="_blank" rel="noreferrer"
-                  className="text-gray-500 hover:text-white transition-colors">
-                  <FaGlobe size={15} />
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── TABS ── */}
-        <div className="flex gap-1 bg-white/5 border border-white/10 rounded-2xl p-1 mb-4">
-          {["about", "posts"].map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
-                tab === t ? "bg-gradient-to-r from-cyan-400/20 to-blue-400/20 text-cyan-300 border border-cyan-400/20"
-                          : "text-gray-500 hover:text-gray-300"
-              }`}>
-              {t === "posts" ? `Posts (${posts.length})` : "About"}
-            </button>
-          ))}
-        </div>
-
-        {/* ══ ABOUT TAB ══════════════════════════════════════════ */}
-        {tab === "about" && (
-          <div className="space-y-3">
-
-            {/* Headline + Location */}
-            <Card>
-              <SectionTitle icon={<FaEdit size={11} />} title="Basic Info" />
-              <div className="space-y-2">
-                <EditInput value={headline} onChange={setHeadline} placeholder="Headline — e.g. Full Stack Developer at Google" />
-                <EditInput value={location} onChange={setLocation} placeholder="Location — e.g. Mumbai, India" />
-              </div>
-            </Card>
-
-            {/* About */}
-            <Card>
-              <SectionTitle icon="✍️" title="About" />
-              <EditInput value={about} onChange={setAbout} placeholder="Write a short bio about yourself…" multiline />
-            </Card>
-
-            {/* Skills */}
-            <Card>
-              <SectionTitle icon="⚡" title="Skills" />
-              <div className="flex gap-2 mb-3">
-                <input value={newSkill} onChange={e => setNewSkill(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && addSkill()}
-                  placeholder="Add a skill…"
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/50 transition-colors" />
-                <button onClick={addSkill}
-                  className="px-3 py-2 bg-cyan-400/20 hover:bg-cyan-400/30 text-cyan-400 rounded-xl text-xs font-bold transition-colors">
-                  + Add
-                </button>
-              </div>
-              {skills.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {skills.map((s, i) => (
-                    <span key={i} className="group flex items-center gap-1 bg-white/5 border border-white/10 hover:border-red-400/30 text-gray-300 px-3 py-1 rounded-full text-xs transition-all">
-                      {s}
-                      <button onClick={() => removeSkill(i)} className="text-gray-600 group-hover:text-red-400 transition-colors ml-0.5">
-                        <FaTimes size={8} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            {/* Education */}
-            <Card>
-              <SectionTitle icon={<FaGraduationCap size={11} />} title="Education" onAdd={addEdu} />
-              {education.length === 0 && (
-                <p className="text-gray-600 text-xs">No education added yet</p>
-              )}
-              <div className="space-y-3">
-                {education.map((e, i) => (
-                  <div key={i} className="bg-white/5 rounded-xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">Entry {i + 1}</span>
-                      <button onClick={() => removeEdu(i)} className="text-gray-600 hover:text-red-400 transition-colors">
-                        <FaTrash size={10} />
-                      </button>
-                    </div>
-                    <input value={e.college} onChange={ev => setEdu(i, "college", ev.target.value)}
-                      placeholder="College / University"
-                      className="w-full bg-transparent border-b border-white/10 pb-1 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/30 transition-colors" />
-                    <div className="flex gap-2">
-                      <input value={e.degree} onChange={ev => setEdu(i, "degree", ev.target.value)}
-                        placeholder="Degree" className="flex-1 bg-transparent border-b border-white/10 pb-1 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/30 transition-colors" />
-                      <input value={e.year} onChange={ev => setEdu(i, "year", ev.target.value)}
-                        placeholder="Year" className="w-20 bg-transparent border-b border-white/10 pb-1 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/30 transition-colors" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Experience */}
-            <Card>
-              <SectionTitle icon={<FaBriefcase size={11} />} title="Experience" onAdd={addExp} />
-              {experience.length === 0 && (
-                <p className="text-gray-600 text-xs">No experience added yet</p>
-              )}
-              <div className="space-y-3">
-                {experience.map((e, i) => (
-                  <div key={i} className="bg-white/5 rounded-xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">Entry {i + 1}</span>
-                      <button onClick={() => removeExp(i)} className="text-gray-600 hover:text-red-400 transition-colors">
-                        <FaTrash size={10} />
-                      </button>
-                    </div>
-                    <input value={e.company} onChange={ev => setExp(i, "company", ev.target.value)}
-                      placeholder="Company"
-                      className="w-full bg-transparent border-b border-white/10 pb-1 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/30 transition-colors" />
-                    <div className="flex gap-2">
-                      <input value={e.position} onChange={ev => setExp(i, "position", ev.target.value)}
-                        placeholder="Position" className="flex-1 bg-transparent border-b border-white/10 pb-1 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/30 transition-colors" />
-                      <input value={e.duration} onChange={ev => setExp(i, "duration", ev.target.value)}
-                        placeholder="Duration" className="w-24 bg-transparent border-b border-white/10 pb-1 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/30 transition-colors" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Achievements */}
-            <Card>
-              <SectionTitle icon={<FaTrophy size={11} />} title="Achievements" onAdd={addAch} />
-              {achievements.length === 0 && (
-                <p className="text-gray-600 text-xs">No achievements added yet</p>
-              )}
-              <div className="space-y-3">
-                {achievements.map((a, i) => (
-                  <div key={i} className="bg-white/5 rounded-xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">Entry {i + 1}</span>
-                      <button onClick={() => removeAch(i)} className="text-gray-600 hover:text-red-400 transition-colors">
-                        <FaTrash size={10} />
-                      </button>
-                    </div>
-                    <input value={a.title} onChange={ev => setAch(i, "title", ev.target.value)}
-                      placeholder="Title"
-                      className="w-full bg-transparent border-b border-white/10 pb-1 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/30 transition-colors" />
-                    <input value={a.description} onChange={ev => setAch(i, "description", ev.target.value)}
-                      placeholder="Description (optional)"
-                      className="w-full bg-transparent border-b border-white/10 pb-1 text-gray-400 text-xs placeholder-gray-600 outline-none focus:border-cyan-400/30 transition-colors" />
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Social Links */}
-            <Card>
-              <SectionTitle icon="🔗" title="Social Links" />
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <FaGithub size={13} className="text-gray-500 shrink-0" />
-                  <input value={github} onChange={e => setGithub(e.target.value)} placeholder="https://github.com/username"
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/50 transition-colors" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <FaLinkedin size={13} className="text-gray-500 shrink-0" />
-                  <input value={linkedin} onChange={e => setLinkedin(e.target.value)} placeholder="https://linkedin.com/in/username"
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/50 transition-colors" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <FaGlobe size={13} className="text-gray-500 shrink-0" />
-                  <input value={portfolio} onChange={e => setPortfolio(e.target.value)} placeholder="https://yourportfolio.com"
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/50 transition-colors" />
-                </div>
-              </div>
-            </Card>
-
-          </div>
-        )}
-
-        {/* ══ POSTS TAB ══════════════════════════════════════════ */}
-        {tab === "posts" && (
-          <div className="space-y-3">
-            {posts.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="text-4xl mb-3">✍️</div>
-                <p className="text-gray-400 font-semibold text-sm">No posts yet</p>
-                <p className="text-gray-600 text-xs mt-1">Your posts will appear here</p>
-              </div>
-            ) : (
-              posts.map(post => (
-                <PostMiniCard key={post._id} post={post} onDelete={deletePost} currentUserId={currentUser._id} />
-              ))
             )}
           </div>
-        )}
 
+          <div className="absolute -bottom-12 left-5 md:left-8 flex items-end gap-4">
+            <div className="relative">
+              {avatar ? (
+                <img
+                  src={avatar}
+                  alt=""
+                  className="w-28 h-28 rounded-full border-4 border-slate-950 object-cover bg-slate-900"
+                />
+              ) : (
+                <div className="w-28 h-28 rounded-full border-4 border-slate-950 bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-4xl font-black text-slate-950">
+                  {profile.fullName?.charAt(0)}
+                </div>
+              )}
+              {isOwn && (
+                <label className="absolute bottom-1 right-1 w-8 h-8 bg-cyan-400 hover:bg-cyan-300 rounded-full flex items-center justify-center cursor-pointer transition-colors shadow-lg">
+                  <FaCamera size={11} className="text-slate-950" />
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={(e) => e.target.files[0] && uploadImage(e.target.files[0], "profile")}
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 mb-5 px-1">
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-3xl md:text-4xl font-black text-white">{profile.fullName}</h1>
+              {profile.isPrivate && <FaLock className="text-gray-500" title="Private account" />}
+              {profile.role && (
+                <span className="bg-cyan-400/15 text-cyan-300 text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
+                  {profile.role}
+                </span>
+              )}
+            </div>
+            {profile.headline && <p className="text-gray-300 mt-2">{profile.headline}</p>}
+            {profile.location && (
+              <p className="flex items-center gap-2 text-gray-500 text-sm mt-2">
+                <FaMapMarkerAlt size={12} /> {profile.location}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            {!isOwn && (
+              <button
+                type="button"
+                onClick={sendRequest}
+                disabled={requesting || profile.requestSent}
+                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"
+              >
+                <FaUserPlus size={13} />
+                {profile.requestSent ? "Request sent" : requesting ? "Sending..." : "Connect"}
+              </button>
+            )}
+            {isOwn && (
+              <button
+                type="button"
+                onClick={() => setTab("edit")}
+                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black flex items-center gap-2"
+              >
+                <FaEdit size={13} /> Edit Profile
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 md:flex md:items-center gap-3 md:gap-6 border-y border-white/10 py-4 mb-5">
+          <div>
+            <p className="text-white font-black text-xl">{posts.length}</p>
+            <p className="text-gray-600 text-xs">Posts</p>
+          </div>
+          <div>
+            <p className="text-white font-black text-xl">{profile.connections?.length || 0}</p>
+            <p className="text-gray-600 text-xs">Connections</p>
+          </div>
+          <div>
+            <p className="text-white font-black text-xl">{profile.profileViews || 0}</p>
+            <p className="text-gray-600 text-xs">Profile views</p>
+          </div>
+          <div className="md:ml-auto col-span-3 flex items-center gap-3">
+            {links.github && <a href={links.github} target="_blank" rel="noreferrer" className="text-gray-500 hover:text-white"><FaGithub size={19} /></a>}
+            {links.linkedin && <a href={links.linkedin} target="_blank" rel="noreferrer" className="text-gray-500 hover:text-cyan-400"><FaLinkedin size={19} /></a>}
+            {links.portfolio && <a href={links.portfolio} target="_blank" rel="noreferrer" className="text-gray-500 hover:text-white"><FaGlobe size={18} /></a>}
+          </div>
+        </div>
+
+        {!visible ? (
+          <Card className="text-center py-16">
+            <FaLock className="mx-auto text-5xl text-gray-600 mb-4" />
+            <h2 className="text-2xl font-black text-white mb-2">This account is private</h2>
+            <p className="text-gray-500 max-w-md mx-auto">
+              Connect with {profile.fullName} to see their About section and posts.
+            </p>
+          </Card>
+        ) : (
+          <>
+            <div className="flex gap-1 bg-white/5 border border-white/10 rounded-2xl p-1 mb-5 max-w-xl">
+              {["about", "posts", ...(isOwn ? ["edit"] : [])].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setTab(item)}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                    tab === item
+                      ? "bg-gradient-to-r from-cyan-400/20 to-blue-400/20 text-cyan-300 border border-cyan-400/20"
+                      : "text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  {item === "posts" ? `Posts (${posts.length})` : item === "edit" ? "Edit Profile" : "About"}
+                </button>
+              ))}
+            </div>
+
+            {tab === "about" && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2 space-y-4">
+                  <Card>
+                    <SectionTitle icon={<FaEdit />} title="About" />
+                    {profile.about || profile.bio ? (
+                      <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{profile.about || profile.bio}</p>
+                    ) : (
+                      <EmptyText>No about details added yet.</EmptyText>
+                    )}
+                  </Card>
+                  <Card>
+                    <SectionTitle icon={<FaBriefcase />} title="Experience" />
+                    {asObjectArray(profile.experience).length ? (
+                      <div className="space-y-3">
+                        {asObjectArray(profile.experience).map((item, index) => (
+                          <div key={index} className="border-l-2 border-cyan-400/40 pl-3">
+                            <p className="font-bold text-white">{item.position || "Role"}</p>
+                            <p className="text-gray-400 text-sm">{item.company}</p>
+                            <p className="text-gray-600 text-xs">{item.duration}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyText>No experience added yet.</EmptyText>
+                    )}
+                  </Card>
+                </div>
+                <div className="space-y-4">
+                  <Card>
+                    <SectionTitle icon={<FaGraduationCap />} title="Education" />
+                    {asObjectArray(profile.education).length ? (
+                      <div className="space-y-3">
+                        {asObjectArray(profile.education).map((item, index) => (
+                          <div key={index}>
+                            <p className="font-bold text-white text-sm">{item.degree || "Degree"}</p>
+                            <p className="text-gray-400 text-sm">{item.college}</p>
+                            <p className="text-gray-600 text-xs">{item.year}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyText>No education added yet.</EmptyText>
+                    )}
+                  </Card>
+                  <Card>
+                    <SectionTitle icon={<FaCertificate />} title="Skills" />
+                    {profile.skills?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {profile.skills.map((skill) => (
+                          <span key={skill} className="bg-white/5 border border-white/10 text-gray-300 px-3 py-1 rounded-full text-xs">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyText>No skills added yet.</EmptyText>
+                    )}
+                  </Card>
+                  <Card>
+                    <SectionTitle icon={<FaTrophy />} title="Achievements" />
+                    {asObjectArray(profile.achievements).length ? (
+                      <div className="space-y-3">
+                        {asObjectArray(profile.achievements).map((item, index) => (
+                          <div key={index}>
+                            <p className="font-bold text-white text-sm">{item.title}</p>
+                            <p className="text-gray-500 text-xs">{item.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyText>No achievements added yet.</EmptyText>
+                    )}
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {tab === "posts" && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {posts.length ? (
+                  posts.map((post) => (
+                    <PostCard key={post._id} post={post} currentUserId={currentUser._id} onDelete={deletePost} />
+                  ))
+                ) : (
+                  <Card className="lg:col-span-2 text-center py-16">
+                    <FaPaperPlane className="mx-auto text-5xl text-gray-700 mb-3" />
+                    <p className="text-gray-400 font-semibold">No posts yet</p>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {tab === "edit" && isOwn && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="space-y-3">
+                  <SectionTitle icon={<FaEdit />} title="Basic Info" />
+                  <EditInput value={form.headline} onChange={(v) => setField("headline", v)} placeholder="Headline" />
+                  <EditInput value={form.location} onChange={(v) => setField("location", v)} placeholder="Location" />
+                  <EditInput value={form.about} onChange={(v) => setField("about", v)} placeholder="About" multiline />
+                </Card>
+
+                <Card>
+                  <SectionTitle icon={<FaCertificate />} title="Skills" />
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      value={newSkill}
+                      onChange={(e) => setNewSkill(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addSkill()}
+                      placeholder="Add a skill"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-cyan-400/50"
+                    />
+                    <button type="button" onClick={addSkill} className="px-3 rounded-xl bg-cyan-400/20 text-cyan-300 font-bold">
+                      <FaPlus />
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {form.skills.map((skill) => (
+                      <span key={skill} className="flex items-center gap-2 bg-white/5 border border-white/10 text-gray-300 px-3 py-1 rounded-full text-xs">
+                        {skill}
+                        <button type="button" onClick={() => setField("skills", form.skills.filter((s) => s !== skill))}>
+                          <FaTimes size={9} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </Card>
+
+                <EditList
+                  title="Education"
+                  icon={<FaGraduationCap />}
+                  items={form.education}
+                  fields={[
+                    ["college", "College / University"],
+                    ["degree", "Degree"],
+                    ["year", "Year"],
+                  ]}
+                  onAdd={() => setField("education", [...form.education, { college: "", degree: "", year: "" }])}
+                  onChange={(i, patch) => updateArray("education", i, patch)}
+                  onRemove={(i) => removeArray("education", i)}
+                />
+
+                <EditList
+                  title="Experience"
+                  icon={<FaBriefcase />}
+                  items={form.experience}
+                  fields={[
+                    ["company", "Company"],
+                    ["position", "Position"],
+                    ["duration", "Duration"],
+                  ]}
+                  onAdd={() => setField("experience", [...form.experience, { company: "", position: "", duration: "" }])}
+                  onChange={(i, patch) => updateArray("experience", i, patch)}
+                  onRemove={(i) => removeArray("experience", i)}
+                />
+
+                <EditList
+                  title="Achievements"
+                  icon={<FaTrophy />}
+                  items={form.achievements}
+                  fields={[
+                    ["title", "Title"],
+                    ["description", "Description"],
+                  ]}
+                  onAdd={() => setField("achievements", [...form.achievements, { title: "", description: "" }])}
+                  onChange={(i, patch) => updateArray("achievements", i, patch)}
+                  onRemove={(i) => removeArray("achievements", i)}
+                />
+
+                <Card className="space-y-3">
+                  <SectionTitle icon={<FaGlobe />} title="Linked Accounts" />
+                  <EditInput value={form.github} onChange={(v) => setField("github", v)} placeholder="GitHub URL" />
+                  <EditInput value={form.linkedin} onChange={(v) => setField("linkedin", v)} placeholder="LinkedIn URL" />
+                  <EditInput value={form.portfolio} onChange={(v) => setField("portfolio", v)} placeholder="Portfolio URL" />
+                </Card>
+
+                <div className="lg:col-span-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={save}
+                    disabled={saving}
+                    className={`px-6 py-3 rounded-2xl font-black flex items-center gap-2 ${
+                      saved
+                        ? "bg-green-500/20 text-green-300 border border-green-400/30"
+                        : "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950"
+                    } disabled:opacity-60`}
+                  >
+                    {saved ? <><FaCheck /> Saved</> : saving ? "Saving..." : "Save Profile"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </Layout>
+  );
+}
+
+function EditList({ title, icon, items, fields, onAdd, onChange, onRemove }) {
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <SectionTitle icon={icon} title={title} />
+        <button type="button" onClick={onAdd} className="w-8 h-8 rounded-xl bg-white/10 hover:bg-cyan-400/20 text-cyan-300 flex items-center justify-center">
+          <FaPlus size={11} />
+        </button>
+      </div>
+      <div className="space-y-3">
+        {items.length === 0 && <EmptyText>No entries added yet.</EmptyText>}
+        {items.map((item, index) => (
+          <div key={index} className="bg-white/5 rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wider">Entry {index + 1}</span>
+              <button type="button" onClick={() => onRemove(index)} className="text-gray-600 hover:text-red-400">
+                <FaTrash size={10} />
+              </button>
+            </div>
+            {fields.map(([key, placeholder]) => (
+              <input
+                key={key}
+                value={item[key] || ""}
+                onChange={(e) => onChange(index, { [key]: e.target.value })}
+                placeholder={placeholder}
+                className="w-full bg-transparent border-b border-white/10 pb-1 text-white text-xs placeholder-gray-600 outline-none focus:border-cyan-400/30"
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }

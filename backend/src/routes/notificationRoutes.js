@@ -38,6 +38,52 @@ router.get(
   }
 );
 
+router.get(
+  "/unread-count",
+  protect,
+  async (req, res) => {
+    try {
+      const count =
+      await Notification.countDocuments({
+        receiver: req.user.id,
+        read: false
+      });
+
+      res.json({ count });
+    } catch (err) {
+      res.status(500).json({
+        message:
+        "Failed to fetch unread notifications"
+      });
+    }
+  }
+);
+
+router.put(
+  "/read-all",
+  protect,
+  async (req, res) => {
+    try {
+      await Notification.updateMany(
+        {
+          receiver: req.user.id,
+          read: false
+        },
+        {
+          read: true
+        }
+      );
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({
+        message:
+        "Failed to update notifications"
+      });
+    }
+  }
+);
+
 router.put(
   "/read/:id",
   protect,

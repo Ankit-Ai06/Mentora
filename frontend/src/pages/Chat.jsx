@@ -10,7 +10,6 @@ import {
   FaTimes,
   FaCheck,
   FaCheckDouble,
-  FaEye,
   FaForward,
 } from "react-icons/fa";
 import io from "socket.io-client";
@@ -18,6 +17,8 @@ import io from "socket.io-client";
 import { API_URL } from "../config";
 
 const API = API_URL;
+const profileImageSrc = (src) =>
+  src?.startsWith("http") ? src : `${API}/uploads/${src}`;
 
 // ─── HELPERS ──────────────────────────────────────────────────────
 
@@ -221,7 +222,7 @@ function MessageBubble({ msg, isOwn, currentUser, onContextMenu }) {
           {/* Time + status */}
           <div className={`flex items-center gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
             <span className="text-[10px] opacity-60">{time}</span>
-            {isOwn && !msg.unsent && (
+            {isOwn && !msg.unsent && currentUser.preferences?.readReceipts !== false && (
               <span className="text-[11px]">
                 <MessageStatusIcon status={msg.status} isOwn={isOwn} />
               </span>
@@ -237,6 +238,8 @@ function MessageBubble({ msg, isOwn, currentUser, onContextMenu }) {
 
 function Chat() {
   const currentUser = JSON.parse(localStorage.getItem("user"));
+  const savedPrefs = JSON.parse(localStorage.getItem("preferences") || "{}");
+  currentUser.preferences = { ...(currentUser.preferences || {}), ...savedPrefs };
 
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -294,7 +297,7 @@ function Chat() {
     });
 
     // status updates (delivered / seen)
-    socketRef.current.on("messageStatusUpdate", ({ senderId, receiverId, status, messageId }) => {
+    socketRef.current.on("messageStatusUpdate", ({ receiverId, status, messageId }) => {
       setMessages((prev) =>
         prev.map((m) => {
           if (messageId) return m._id === messageId ? { ...m, status } : m;
@@ -346,12 +349,15 @@ function Chat() {
     });
 
     return () => { socketRef.current.disconnect(); };
-  }, []);
+  }, [currentUser._id]);
 
   // ── FETCH USERS ────────────────────────────────────────────────
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/api/users`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API}/api/users/connections`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       if (!Array.isArray(data)) { setUsers([]); return; }
       const filtered = data.filter((u) => u?._id && u._id !== currentUser._id);
@@ -363,7 +369,10 @@ function Chat() {
     }
   }, [currentUser._id]);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchUsers();
+  }, [fetchUsers]);
 
   // ── FETCH MESSAGES ─────────────────────────────────────────────
   const fetchMessages = async (userId) => {
@@ -533,6 +542,9 @@ function Chat() {
     (u) => u?.fullName?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const canShowOnline = (user) => user?.preferences?.showOnlineStatus !== false;
+  const canShowLastSeen = (user) => user?.preferences?.showLastSeen !== false;
+
   // ─── RENDER ──────────────────────────────────────────────────────
 
   return (
@@ -601,7 +613,7 @@ function Chat() {
                   <div className="relative shrink-0">
                     {user.profileImage || user.profilePicture ? (
                       <img
-                        src={`${API}/uploads/${user.profileImage || user.profilePicture}`}
+                        src={profileImageSrc(user.profileImage || user.profilePicture)}
                         alt={user.fullName}
                         className="w-14 h-14 rounded-full object-cover"
                       />
@@ -612,7 +624,7 @@ function Chat() {
                     )}
                     <div
                       className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
-                        user.isOnline ? "bg-green-400" : "bg-gray-500"
+                        canShowOnline(user) && user.isOnline ? "bg-green-400" : "bg-gray-500"
                       }`}
                     />
                   </div>
@@ -620,7 +632,10 @@ function Chat() {
                   <div className="flex-1 overflow-hidden">
                     <h2 className="font-bold text-white truncate">{user.fullName}</h2>
                     <p className="text-gray-400 text-xs truncate">
-                      {user.lastMessage || (user.isOnline ? "Online" : "Start conversation")}
+                      {user.lastMessage ||
+                        (canShowOnline(user) && user.isOnline
+                          ? "Online"
+                          : "Start conversation")}
                     </p>
                   </div>
                 </div>
@@ -640,7 +655,7 @@ function Chat() {
                 <div className="relative shrink-0">
                   {selectedUser.profileImage || selectedUser.profilePicture ? (
                     <img
-                      src={`${API}/uploads/${selectedUser.profileImage || selectedUser.profilePicture}`}
+                      src={profileImageSrc(selectedUser.profileImage || selectedUser.profilePicture)}
                       alt={selectedUser.fullName}
                       className="w-14 h-14 rounded-full object-cover"
                     />
@@ -651,7 +666,7 @@ function Chat() {
                   )}
                   <div
                     className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
-                      selectedUser.isOnline ? "bg-green-400" : "bg-gray-500"
+                      canShowOnline(selectedUser) && selectedUser.isOnline ? "bg-green-400" : "bg-gray-500"
                     }`}
                   />
                 </div>
@@ -661,9 +676,11 @@ function Chat() {
                   <p className="text-cyan-300 text-sm">
                     {isTyping
                       ? "Typing..."
-                      : selectedUser.isOnline
+                      : canShowOnline(selectedUser) && selectedUser.isOnline
                       ? "Active now"
-                      : formatLastSeen(selectedUser.lastSeen)}
+                      : canShowLastSeen(selectedUser)
+                      ? formatLastSeen(selectedUser.lastSeen)
+                      : "Offline"}
                   </p>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 const Post = require("../models/Post");
+const User = require("../models/User");
 
 // ─── CREATE POST ──────────────────────────────────────────────────
 const createPost = async (req, res) => {
@@ -22,9 +23,55 @@ const createPost = async (req, res) => {
 // ─── GET ALL POSTS (explore feed — OTHER users) ───────────────────
 const getPosts = async (req, res) => {
   try {
-    const posts = await Post.find({ user: { $ne: req.user.id } })
+    const viewer = await User.findById(req.user.id).select("connections");
+    const visibleUserIds = [
+      req.user.id,
+      ...(viewer?.connections || []).map((id) => id.toString()),
+    ];
+    const publicUsers = await User.find({
+      isPrivate: { $ne: true },
+    }).select("_id");
+
+    publicUsers.forEach((user) =>
+      visibleUserIds.push(user._id.toString())
+    );
+
+    const posts = await Post.find({
+      user: {
+        $ne: req.user.id,
+        $in: [...new Set(visibleUserIds)],
+      },
+    })
       .populate("user", "fullName profilePicture profileImage role headline")
       .sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch posts" });
+  }
+};
+
+const getUserPosts = async (req, res) => {
+  try {
+    const viewer = await User.findById(req.user.id).select("connections");
+    const owner = await User.findById(req.params.id).select("isPrivate");
+
+    if (!owner) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isOwn = req.user.id === req.params.id;
+    const connected = viewer?.connections?.some(
+      (id) => id.toString() === req.params.id
+    );
+
+    if (owner.isPrivate && !isOwn && !connected) {
+      return res.status(403).json({ message: "This account is private" });
+    }
+
+    const posts = await Post.find({ user: req.params.id })
+      .populate("user", "fullName profilePicture profileImage role headline")
+      .sort({ createdAt: -1 });
+
     res.json(posts);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch posts" });
@@ -77,4 +124,4 @@ const deletePost = async (req, res) => {
   }
 };
 
-module.exports = { createPost, getPosts, getMyPosts, likePost, deletePost };
+module.exports = { createPost, getPosts, getMyPosts, getUserPosts, likePost, deletePost };

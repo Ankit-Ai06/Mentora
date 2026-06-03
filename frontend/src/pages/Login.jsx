@@ -128,9 +128,6 @@ function ForgotPasswordModal({ onClose }) {
   };
 
   // ── Shared input style ──────────────────────────────────────────
-  const inputClass =
-    "w-full bg-white/10 border border-white/10 rounded-2xl px-5 py-3.5 text-white placeholder-gray-400 outline-none focus:border-cyan-400/50 transition-colors";
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md px-4">
       <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 border border-white/10 rounded-[32px] p-8 w-full max-w-md shadow-2xl">

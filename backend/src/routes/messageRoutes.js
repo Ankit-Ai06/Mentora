@@ -8,10 +8,14 @@ const {
   forwardMessage,
   markDelivered,
   markSeen,
+  getUnreadCount,
 } = require("../controllers/messageController");
 
 // send
 router.post("/", sendMessage);
+
+// unread count
+router.get("/unread/:userId", getUnreadCount);
 
 // get conversation
 router.get("/:senderId/:receiverId", getMessages);

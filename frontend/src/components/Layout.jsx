@@ -4,21 +4,53 @@ import {
   FaUser,
   FaBell,
   FaSignOutAlt,
-  FaUserFriends,
   FaCog,
   FaUsers,
 } from "react-icons/fa";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { API_URL } from "../config";
+const profileImageSrc = (src) =>
+  src?.startsWith("http") ? src : `${API_URL}/uploads/${src}`;
 function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [showLogout, setShowLogout] = useState(false);
+  const [badges, setBadges] = useState({ notifications: 0, messages: 0 });
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const savedPrefs = JSON.parse(localStorage.getItem("preferences") || "{}");
+  const darkMode = savedPrefs.darkMode !== false;
+
+  useEffect(() => {
+    const fetchBadges = async () => {
+      const token = localStorage.getItem("token");
+      if (!token || !user?._id) return;
+
+      try {
+        const [nRes, mRes] = await Promise.all([
+          fetch(`${API_URL}/api/notifications/unread-count`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${API_URL}/api/messages/unread/${user._id}`),
+        ]);
+        const nData = await nRes.json();
+        const mData = await mRes.json();
+        setBadges({
+          notifications: nData.count || 0,
+          messages: mData.count || 0,
+        });
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    fetchBadges();
+    const id = setInterval(fetchBadges, 30000);
+    return () => clearInterval(id);
+  }, [location.pathname, user?._id]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -28,15 +60,15 @@ function Layout({ children }) {
 
   const navItems = [
     { to: "/home", icon: <FaHome />, label: "Home" },
-    { to: "/chat", icon: <FaComments />, label: "Messages" },
+    { to: "/chat", icon: <FaComments />, label: "Messages", badge: badges.messages },
     { to: "/profile", icon: <FaUser />, label: "Profile" },
-    { to: "/notifications", icon: <FaBell />, label: "Notifications" },
+    { to: "/notifications", icon: <FaBell />, label: "Notifications", badge: badges.notifications },
     { to: "/connections", icon: <FaUsers />, label: "Connections" },
     { to: "/settings", icon: <FaCog />, label: "Settings" },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white flex overflow-hidden">
+    <div className={`min-h-screen ${darkMode ? "bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white" : "bg-slate-100 text-slate-950"} flex overflow-hidden`}>
 
       {/* ── SIDEBAR ── */}
       <motion.div
@@ -62,19 +94,26 @@ function Layout({ children }) {
 
           {/* Nav */}
           <nav className="space-y-1">
-            {navItems.map(({ to, icon, label }) => {
+            {navItems.map(({ to, icon, label, badge }) => {
               const active = location.pathname.toLowerCase() === to.toLowerCase();
               return (
                 <Link
                   key={to}
                   to={to}
-                  className={`flex items-center justify-center md:justify-start gap-4 px-4 py-3 rounded-2xl transition-all duration-300 ${
+                  className={`relative flex items-center justify-center md:justify-start gap-4 px-4 py-3 rounded-2xl transition-all duration-300 ${
                     active
                       ? "bg-cyan-500/20 border border-cyan-400/20 text-cyan-400"
-                      : "hover:bg-white/10 text-gray-300 hover:text-white"
+                      : darkMode ? "hover:bg-white/10 text-gray-300 hover:text-white" : "hover:bg-slate-200 text-slate-600 hover:text-slate-950"
                   }`}
                 >
-                  <span className="text-lg">{icon}</span>
+                  <span className="relative text-lg">
+                    {icon}
+                    {badge > 0 && (
+                      <span className="absolute -right-2 -top-2 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">
+                        {badge > 9 ? "9+" : badge}
+                      </span>
+                    )}
+                  </span>
                   <span className="hidden md:block font-medium text-sm">{label}</span>
                 </Link>
               );
@@ -89,7 +128,7 @@ function Layout({ children }) {
           <div className="hidden md:flex items-center gap-3 bg-white/5 border border-white/10 rounded-3xl px-4 py-3">
             {user.profileImage || user.profilePicture ? (
               <img
-                src={`${API_URL}/uploads/${user.profileImage || user.profilePicture}`}
+                src={profileImageSrc(user.profileImage || user.profilePicture)}
                 alt={user.fullName}
                 className="w-9 h-9 rounded-full object-cover shrink-0"
               />

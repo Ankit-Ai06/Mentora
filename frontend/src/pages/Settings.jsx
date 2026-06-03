@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Layout from "../components/Layout";
@@ -7,13 +7,14 @@ import {
   FaLanguage, FaQuestionCircle, FaInfoCircle,
   FaSignOutAlt, FaTrash, FaChevronRight, FaCheck,
   FaEyeSlash, FaMoon, FaSun, FaDownload, FaLink,
-  FaExclamationTriangle, FaUser,
+  FaExclamationTriangle,
 } from "react-icons/fa";
-import { motion } from "framer-motion";
 
 import { API_URL } from "../config";
 
 const API = API_URL;
+const profileImageSrc = (src) =>
+  src?.startsWith("http") ? src : `${API}/uploads/${src}`;
 
 // ─── TOGGLE ───────────────────────────────────────────────────────
 function Toggle({ value, onChange }) {
@@ -222,6 +223,24 @@ function ConfirmModal({ title, message, confirmLabel, danger, onConfirm, onClose
   );
 }
 
+function InfoModal({ title, children, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md px-4">
+      <div className="bg-slate-900 border border-white/10 rounded-[32px] p-8 w-full max-w-md shadow-2xl">
+        <h2 className="text-2xl font-black text-white mb-5">{title}</h2>
+        <div className="text-sm text-gray-300 space-y-3">{children}</div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-7 w-full py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black transition-all hover:scale-[1.02]"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN SETTINGS ────────────────────────────────────────────────
 function Settings() {
   const navigate = useNavigate();
@@ -229,6 +248,8 @@ function Settings() {
 
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [infoModal, setInfoModal] = useState(null);
+  const [savingKey, setSavingKey] = useState("");
 
   const [prefs, setPrefs] = useState({
     pushNotifications: true,
@@ -242,8 +263,95 @@ function Settings() {
     darkMode: true,
     twoFactor: false,
   });
+  const [profile, setProfile] = useState(user);
 
-  const setPref = (key) => (val) => setPrefs((p) => ({ ...p, [key]: val }));
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`${API}/api/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = res.data;
+        setProfile(data);
+        const merged = {
+          ...prefs,
+          ...(data.preferences || {}),
+          privateAccount: !!data.isPrivate,
+        };
+        setPrefs(merged);
+        localStorage.setItem("preferences", JSON.stringify(merged));
+        localStorage.setItem("user", JSON.stringify(data));
+      } catch (err) {
+        console.log(err);
+        const saved = JSON.parse(localStorage.getItem("preferences") || "{}");
+        setPrefs((p) => ({ ...p, ...saved }));
+      }
+    };
+
+    loadSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const saveSettings = async (nextPrefs, key = "") => {
+    setSavingKey(key);
+    localStorage.setItem("preferences", JSON.stringify(nextPrefs));
+
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.put(
+        `${API}/api/users/settings`,
+        {
+          isPrivate: nextPrefs.privateAccount,
+          preferences: {
+            pushNotifications: nextPrefs.pushNotifications,
+            emailNotifications: nextPrefs.emailNotifications,
+            messageNotifications: nextPrefs.messageNotifications,
+            connectionNotifications: nextPrefs.connectionNotifications,
+            showOnlineStatus: nextPrefs.showOnlineStatus,
+            showLastSeen: nextPrefs.showLastSeen,
+            readReceipts: nextPrefs.readReceipts,
+            darkMode: nextPrefs.darkMode,
+            twoFactor: nextPrefs.twoFactor,
+          },
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      localStorage.setItem("user", JSON.stringify(res.data));
+      setProfile(res.data);
+    } catch (err) {
+      console.log(err);
+    }
+
+    setSavingKey("");
+  };
+
+  const setPref = (key) => (val) => {
+    const next = { ...prefs, [key]: val };
+    setPrefs(next);
+    saveSettings(next, key);
+  };
+
+  const downloadData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`${API}/api/users/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mentora-data-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setConfirmModal(null);
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -257,7 +365,9 @@ function Settings() {
       await axios.delete(`${API}/api/users/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-    } catch {}
+    } catch (err) {
+      console.log(err);
+    }
     localStorage.clear();
     navigate("/login");
   };
@@ -269,6 +379,27 @@ function Settings() {
       )}
       {confirmModal && (
         <ConfirmModal {...confirmModal} onClose={() => setConfirmModal(null)} />
+      )}
+      {infoModal === "linked" && (
+        <InfoModal title="Linked Accounts" onClose={() => setInfoModal(null)}>
+          <p>Email: {profile?.email || "Not available"}</p>
+          <p>GitHub: {profile?.github || profile?.socialLinks?.github || "Not linked"}</p>
+          <p>LinkedIn: {profile?.linkedin || profile?.socialLinks?.linkedin || "Not linked"}</p>
+          <p>Portfolio: {profile?.socialLinks?.portfolio || "Not linked"}</p>
+          <button
+            type="button"
+            onClick={() => navigate("/profile")}
+            className="w-full mt-2 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold"
+          >
+            Edit linked accounts
+          </button>
+        </InfoModal>
+      )}
+      {infoModal === "about" && (
+        <InfoModal title="About Mentora" onClose={() => setInfoModal(null)}>
+          <p>Mentora helps students and professionals connect, share posts, build profiles, and message their network.</p>
+          <p>Version 1.0.0</p>
+        </InfoModal>
       )}
 
       <div className="max-w-2xl mx-auto py-6 px-2">
@@ -288,7 +419,7 @@ function Settings() {
         >
           {user.profileImage || user.profilePicture ? (
             <img
-              src={`${API}/uploads/${user.profileImage || user.profilePicture}`}
+              src={profileImageSrc(user.profileImage || user.profilePicture)}
               alt={user.fullName}
               className="w-14 h-14 rounded-full object-cover shrink-0"
             />
@@ -323,7 +454,7 @@ function Settings() {
             icon={<FaLink />}
             label="Linked Accounts"
             sublabel="Google, LinkedIn, GitHub"
-            onClick={() => {}}
+            onClick={() => setInfoModal("linked")}
           />
           <ClickRow
             icon={<FaDownload />}
@@ -332,10 +463,10 @@ function Settings() {
             onClick={() =>
               setConfirmModal({
                 title: "Download Data",
-                message: "We'll prepare your data and email a download link within 24 hours.",
-                confirmLabel: "Request",
+                message: "This downloads a JSON copy of your profile, posts, messages and notifications.",
+                confirmLabel: "Download",
                 danger: false,
-                onConfirm: () => setConfirmModal(null),
+                onConfirm: downloadData,
               })
             }
           />
@@ -346,7 +477,7 @@ function Settings() {
           <ToggleRow
             icon={<FaEye />}
             label="Private Account"
-            sublabel="Only approved followers can see your posts"
+            sublabel="Only connected users can see your About and posts"
             value={prefs.privateAccount}
             onChange={setPref("privateAccount")}
           />
@@ -431,7 +562,7 @@ function Settings() {
         {/* ── SUPPORT ── */}
         <Section title="Support">
           <ClickRow icon={<FaQuestionCircle />} label="Help Center" sublabel="FAQs and troubleshooting" onClick={() => {}} />
-          <ClickRow icon={<FaInfoCircle />} label="About Mentora" sublabel="Version 1.0.0" onClick={() => {}} />
+          <ClickRow icon={<FaInfoCircle />} label="About Mentora" sublabel="Version 1.0.0" onClick={() => setInfoModal("about")} />
           <ClickRow icon={<FaShieldAlt />} label="Privacy Policy" onClick={() => {}} />
         </Section>
 
@@ -471,6 +602,11 @@ function Settings() {
         </Section>
 
       </div>
+      {savingKey && (
+        <div className="fixed bottom-5 right-5 bg-slate-900 border border-cyan-400/30 text-cyan-300 rounded-2xl px-4 py-3 text-sm shadow-2xl">
+          Saving...
+        </div>
+      )}
     </Layout>
   );
 }

@@ -14,7 +14,7 @@ const API = API_URL;
 
 // ─── VALIDATORS ───────────────────────────────────────────────────
 const isValidEmail = (v) =>
-  /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(v.trim());
+  /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v.trim());
 
 // Must be 10-15 digits (spaces/dashes/+ allowed)
 const isValidPhone = (v) => {

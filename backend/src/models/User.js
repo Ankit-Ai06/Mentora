@@ -21,8 +21,12 @@ const userSchema = new mongoose.Schema(
     bio: { type: String, default: "" },
 
     skills: { type: [String], default: [] },
-    education: { type: [String], default: [] },
-    achievements: { type: [String], default: [] },
+    education: [
+      { college: String, degree: String, year: String }
+    ],
+    achievements: [
+      { title: String, description: String }
+    ],
 
     experience: [
       { company: String, position: String, duration: String }
@@ -39,6 +43,19 @@ const userSchema = new mongoose.Schema(
     linkedin: { type: String, default: "" },
 
     profileViews: { type: Number, default: 0 },
+
+    isPrivate: { type: Boolean, default: false },
+    preferences: {
+      pushNotifications: { type: Boolean, default: true },
+      emailNotifications: { type: Boolean, default: true },
+      messageNotifications: { type: Boolean, default: true },
+      connectionNotifications: { type: Boolean, default: true },
+      showOnlineStatus: { type: Boolean, default: true },
+      showLastSeen: { type: Boolean, default: true },
+      readReceipts: { type: Boolean, default: true },
+      darkMode: { type: Boolean, default: true },
+      twoFactor: { type: Boolean, default: false },
+    },
 
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
