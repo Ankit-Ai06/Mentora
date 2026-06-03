@@ -2,8 +2,7 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const dns = require("dns").promises;
-const { Resend } = require("resend");
-const resend = new Resend(process.env.RESEND_API_KEY);
+const sendOtpEmail = require("../utils/sendOtpEmail");
 
 
 // ─── IN-MEMORY OTP STORES ─────────────────────────────────────────

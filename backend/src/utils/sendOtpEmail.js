@@ -1,27 +1,21 @@
-const { Resend } = require("resend");
+const sgMail = require("@sendgrid/mail");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const sendOtpEmail = async (email, otp) => {
-  try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM || "Mentora <onboarding@resend.dev>",
-      to: email,
-      subject: "Mentora OTP Verification",
-      html: `
-        <h2>Mentora OTP Verification</h2>
-        <p>Your OTP is:</p>
-        <h1>${otp}</h1>
-        <p>This OTP is valid for 10 minutes.</p>
-      `,
-    });
+  const msg = {
+    to: email,
+    from: "mentora.noreply@gmail.com",
+    subject: "Mentora OTP Verification",
+    html: `
+      <h2>Mentora OTP Verification</h2>
+      <p>Your OTP is:</p>
+      <h1>${otp}</h1>
+      <p>This OTP expires in 10 minutes.</p>
+    `,
+  };
 
-    console.log("OTP email sent successfully");
-    return true;
-  } catch (error) {
-    console.log("Resend email error:", error.message);
-    return false;
-  }
+  await sgMail.send(msg);
 };
 
 module.exports = sendOtpEmail;
