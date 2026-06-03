@@ -3,6 +3,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const dns = require("dns").promises;
 const sendOtpEmail = require("../utils/sendOtpEmail");
+const sgMail = require("@sendgrid/mail");
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 
 // ─── IN-MEMORY OTP STORES ─────────────────────────────────────────
@@ -28,22 +30,22 @@ const otpHtml = (otpCode, heading, sub) => `
 
 // ─── SEND EMAIL HELPER ────────────────────────────────────────────
 const trySendEmail = async (to, subject, html, otpCode) => {
-  const response = await resend.emails.send({
-    from: process.env.EMAIL_FROM || "Mentora <onboarding@resend.dev>",
+  const msg = {
     to,
+    from: process.env.EMAIL_FROM || "mentora.noreply@gmail.com",
     subject,
     html,
     text: `Your Mentora OTP code is: ${otpCode}. It expires in 10 minutes.`,
-  });
+  };
 
-  if (response.error) {
-    console.log("❌ Resend Email Error:", response.error.message);
-    throw new Error(response.error.message);
+  try {
+    await sgMail.send(msg);
+    console.log(`✅ OTP email sent to ${to}`);
+    return true;
+  } catch (error) {
+    console.error("❌ SendGrid Email Error:", error.response?.body || error.message);
+    throw new Error("Failed to send OTP email");
   }
-
-  console.log("RESEND RESPONSE:", response);
-  console.log(`✅ OTP email sent to ${to}`);
-  return true;
 };
 
 // ─── DNS EMAIL DOMAIN CHECK ───────────────────────────────────────
