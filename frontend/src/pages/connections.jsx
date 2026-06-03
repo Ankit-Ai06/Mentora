@@ -13,6 +13,7 @@ const profileImageSrc = (src) =>
 function Connections() {
 
   const [connections, setConnections] = useState([]);
+  const [busyId, setBusyId] = useState("");
 
   const token = localStorage.getItem("token");
 
@@ -36,6 +37,25 @@ function Connections() {
 
       console.log(error);
     }
+  };
+
+  const disconnect = async (id) => {
+    setBusyId(id);
+    try {
+      await axios.post(
+        `${API_URL}/api/users/disconnect/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setConnections((prev) => prev.filter((user) => user._id !== id));
+    } catch (error) {
+      console.log(error);
+    }
+    setBusyId("");
   };
 
   useEffect(() => {
@@ -99,6 +119,15 @@ function Connections() {
                 </p>
 
               </div>
+
+              <button
+                type="button"
+                disabled={busyId === user._id}
+                onClick={() => disconnect(user._id)}
+                className="mt-5 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-red-500/10 hover:text-red-300 disabled:opacity-60"
+              >
+                {busyId === user._id ? "Removing..." : "Connected"}
+              </button>
 
             </motion.div>
 

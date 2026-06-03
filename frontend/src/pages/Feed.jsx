@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import Layout from "../components/Layout";
 import axios from "axios";
+import { Link } from "react-router-dom";
 import {
   FaHeart, FaRegHeart, FaComment, FaShare,
-  FaImage, FaEllipsisH, FaPaperPlane, FaTrash,
+  FaImage, FaEllipsisH, FaPaperPlane, FaTrash, FaTimes, FaCheck,
 } from "react-icons/fa";
 
 import { API_URL } from "../config";
@@ -21,13 +22,107 @@ function timeAgo(date) {
   return new Date(date).toLocaleDateString();
 }
 
-function Avatar({ user, size = "md" }) {
+function Avatar({ user, size = "md", linked = false }) {
   const sz = size === "sm" ? "w-8 h-8 text-xs" : size === "lg" ? "w-12 h-12 text-base" : "w-10 h-10 text-sm";
   const src = user?.profileImage || user?.profilePicture;
-  if (src) return <img src={profileImageSrc(src)} alt="" className={`${sz} rounded-full object-cover shrink-0`} />;
-  return (
+  const body = src ? (
+    <img src={profileImageSrc(src)} alt="" className={`${sz} rounded-full object-cover shrink-0`} />
+  ) : (
     <div className={`${sz} rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center font-black text-slate-900 shrink-0`}>
       {user?.fullName?.charAt(0)}
+    </div>
+  );
+
+  if (linked && user?._id) {
+    return <Link to={`/profile/${user._id}`} className="shrink-0">{body}</Link>;
+  }
+
+  return body;
+}
+
+function ShareModal({ post, connections, currentUser, onSend, onClose }) {
+  const [selected, setSelected] = useState([]);
+  const [sending, setSending] = useState(false);
+
+  const toggle = (id) => {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const send = async () => {
+    if (selected.length === 0) return;
+    setSending(true);
+    await onSend(selected);
+    setSending(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
+      <div className="w-full max-w-md max-h-[82vh] bg-slate-900 border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <h2 className="text-xl font-black text-white">Share post</h2>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-white">
+            <FaTimes />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 border-b border-white/10">
+          <div className="bg-white/5 rounded-2xl p-3">
+            <p className="text-xs text-gray-500 mb-1">
+              {post.user?.fullName || "Mentora user"} posted
+            </p>
+            <p className="text-sm text-gray-200 line-clamp-3">{post.content}</p>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {connections.length === 0 ? (
+            <p className="text-center text-gray-500 py-10">
+              Connect with people first to share posts in chat.
+            </p>
+          ) : (
+            connections.map((user) => {
+              const active = selected.includes(user._id);
+
+              return (
+                <button
+                  type="button"
+                  key={user._id}
+                  onClick={() => toggle(user._id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-2xl text-left transition-all ${
+                    active
+                      ? "bg-cyan-400/15 border border-cyan-400/30"
+                      : "hover:bg-white/10 border border-transparent"
+                  }`}
+                >
+                  <Avatar user={user} size="md" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-white truncate">{user.fullName}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email || user.role}</p>
+                  </div>
+                  {active && <FaCheck className="text-cyan-300" />}
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        <div className="p-4 border-t border-white/10">
+          <button
+            type="button"
+            onClick={send}
+            disabled={selected.length === 0 || sending}
+            className="w-full py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black disabled:opacity-50"
+          >
+            {sending
+              ? "Sending..."
+              : selected.length
+              ? `Send to ${selected.length}`
+              : `Send as ${currentUser?.fullName?.split(" ")[0] || "you"}`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -47,7 +142,6 @@ function PostCard({
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [commenting, setCommenting] = useState(false);
-  const [shareCopied, setShareCopied] = useState(false);
   const isOwn = post.user?._id === currentUserId;
   const liked = post.likes?.includes(currentUserId);
   const likeCount = post.likes?.length || 0;
@@ -69,23 +163,17 @@ function PostCard({
     setCommenting(false);
   };
 
-  const share = async () => {
-    const ok = await onShare(post);
-    if (ok) {
-      setShareCopied(true);
-      setTimeout(() => setShareCopied(false), 1600);
-    }
-  };
-
   return (
     <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-white/20 transition-all duration-300">
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-3">
-          <Avatar user={post.user} size="md" />
+          <Avatar user={post.user} size="md" linked />
           <div>
-            <p className="font-bold text-white text-sm leading-none">{post.user?.fullName}</p>
+            <Link to={`/profile/${post.user?._id}`} className="font-bold text-white text-sm leading-none hover:text-cyan-300">
+              {post.user?.fullName}
+            </Link>
             <div className="flex items-center gap-2 mt-0.5">
               {post.user?.role && (
                 <span className="text-[10px] text-cyan-400/80 font-semibold">{post.user.role}</span>
@@ -154,10 +242,10 @@ function PostCard({
           <span className="text-xs">Comment</span>
         </button>
 
-        <button onClick={share}
+        <button onClick={() => onShare(post)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-all flex-1 justify-center">
           <FaShare size={13} />
-          <span className="text-xs">{shareCopied ? "Copied" : "Share"}</span>
+          <span className="text-xs">Share</span>
         </button>
       </div>
 
@@ -196,12 +284,14 @@ function PostCard({
 
                 return (
                   <div key={comment._id} className="flex items-start gap-2">
-                    <Avatar user={comment.user} size="sm" />
+                    <Avatar user={comment.user} size="sm" linked />
                     <div className="flex-1 min-w-0">
                       <div className="bg-white/5 rounded-2xl px-3 py-2">
                         <div className="flex items-start gap-2">
                           <div className="flex-1 min-w-0">
-                            <p className="text-white text-xs font-bold">{comment.user?.fullName || "Mentora user"}</p>
+                            <Link to={`/profile/${comment.user?._id}`} className="text-white text-xs font-bold hover:text-cyan-300">
+                              {comment.user?.fullName || "Mentora user"}
+                            </Link>
                             <p className="text-gray-300 text-sm whitespace-pre-wrap break-words">{comment.text}</p>
                           </div>
                           {canDelete && (
@@ -296,6 +386,8 @@ export default function Feed() {
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const token = localStorage.getItem("token");
   const [posts, setPosts] = useState([]);
+  const [connections, setConnections] = useState([]);
+  const [sharePost, setSharePost] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const replacePost = (updatedPost) => {
@@ -314,9 +406,21 @@ export default function Feed() {
     setLoading(false);
   };
 
+  const fetchConnections = async () => {
+    try {
+      const res = await axios.get(`${API}/api/users/connections`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setConnections(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPosts();
+    fetchConnections();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -353,28 +457,34 @@ export default function Feed() {
     } catch (err) { console.log(err); }
   };
 
-  const handleShare = async (post) => {
+  const handleShare = (post) => {
+    setSharePost(post);
+  };
+
+  const sendSharedPost = async (receiverIds) => {
+    if (!sharePost) return;
+
     try {
-      const postUrl = `${window.location.origin}/profile/${post.user?._id}`;
+      const postUrl = `${window.location.origin}/profile/${sharePost.user?._id}`;
+      const text = `Shared a Mentora post from ${sharePost.user?.fullName || "someone"}:\n\n${sharePost.content}\n\n${postUrl}`;
 
-      if (navigator.share) {
-        await navigator.share({
-          title: `${post.user?.fullName || "Mentora"} on Mentora`,
-          text: post.content,
-          url: postUrl,
-        });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(postUrl);
-      }
+      await Promise.all(
+        receiverIds.map((receiverId) =>
+          axios.post(`${API}/api/messages`, {
+            senderId: currentUser._id,
+            receiverId,
+            text,
+          })
+        )
+      );
 
-      const res = await axios.post(`${API}/api/posts/share/${post._id}`, {}, {
+      const res = await axios.post(`${API}/api/posts/share/${sharePost._id}`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
       replacePost(res.data);
-      return true;
+      setSharePost(null);
     } catch (err) {
-      if (err.name !== "AbortError") console.log(err);
-      return false;
+      console.log(err);
     }
   };
 
@@ -389,6 +499,15 @@ export default function Feed() {
 
   return (
     <Layout>
+      {sharePost && (
+        <ShareModal
+          post={sharePost}
+          connections={connections}
+          currentUser={currentUser}
+          onSend={sendSharedPost}
+          onClose={() => setSharePost(null)}
+        />
+      )}
       <div className="max-w-xl mx-auto py-4 space-y-4">
 
         {/* Header */}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Layout from "../components/Layout";
+import { Link } from "react-router-dom";
 import {
   FaPaperPlane,
   FaSearch,
@@ -680,17 +681,19 @@ function Chat() {
               {/* Chat Header */}
               <div className="p-5 border-b border-white/10 flex items-center gap-4 bg-white/5 shrink-0">
                 <div className="relative shrink-0">
-                  {selectedUser.profileImage || selectedUser.profilePicture ? (
-                    <img
-                      src={profileImageSrc(selectedUser.profileImage || selectedUser.profilePicture)}
-                      alt={selectedUser.fullName}
-                      className="w-14 h-14 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center text-xl font-black text-white">
-                      {selectedUser.fullName?.charAt(0)}
-                    </div>
-                  )}
+                  <Link to={`/profile/${selectedUser._id}`}>
+                    {selectedUser.profileImage || selectedUser.profilePicture ? (
+                      <img
+                        src={profileImageSrc(selectedUser.profileImage || selectedUser.profilePicture)}
+                        alt={selectedUser.fullName}
+                        className="w-14 h-14 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center text-xl font-black text-white">
+                        {selectedUser.fullName?.charAt(0)}
+                      </div>
+                    )}
+                  </Link>
                   <div
                     className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
                       canShowOnline(selectedUser) && selectedUser.isOnline ? "bg-green-400" : "bg-gray-500"
@@ -699,7 +702,9 @@ function Chat() {
                 </div>
 
                 <div>
-                  <h2 className="text-2xl font-black text-white">{selectedUser.fullName}</h2>
+                  <Link to={`/profile/${selectedUser._id}`} className="text-2xl font-black text-white hover:text-cyan-300">
+                    {selectedUser.fullName}
+                  </Link>
                   <p className="text-cyan-300 text-sm">
                     {isTyping
                       ? "Typing..."

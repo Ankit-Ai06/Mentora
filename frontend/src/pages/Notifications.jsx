@@ -1,5 +1,6 @@
 import Layout from "../components/Layout";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import { FaBell, FaCheck, FaTimes } from "react-icons/fa";
 import { API_URL } from "../config";
@@ -98,13 +99,19 @@ function Notifications() {
                   <span className="absolute right-4 top-4 w-2.5 h-2.5 rounded-full bg-red-500" />
                 )}
 
-                <div className="w-11 h-11 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center font-black text-slate-950 shrink-0">
+                <Link to={n.sender?._id ? `/profile/${n.sender._id}` : "/notifications"} className="w-11 h-11 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center font-black text-slate-950 shrink-0">
                   {n.sender?.fullName?.charAt(0) || "M"}
-                </div>
+                </Link>
 
                 <div className="flex-1 min-w-0">
                   <p className="text-white pr-6">
-                    <span className="font-bold">{n.sender?.fullName || "Mentora"}</span>{" "}
+                    {n.sender?._id ? (
+                      <Link to={`/profile/${n.sender._id}`} className="font-bold hover:text-cyan-300">
+                        {n.sender?.fullName || "Mentora"}
+                      </Link>
+                    ) : (
+                      <span className="font-bold">{n.sender?.fullName || "Mentora"}</span>
+                    )}{" "}
                     <span className="text-gray-300">{n.text}</span>
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
