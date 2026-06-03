@@ -20,6 +20,7 @@ const notificationSchema = new mongoose.Schema(
             "request_accepted",
             "like",
             "comment",
+            "share",
             "message"
         ]
     },

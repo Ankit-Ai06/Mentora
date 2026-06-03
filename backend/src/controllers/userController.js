@@ -289,6 +289,47 @@ res.json({
     });
   }
 };
+
+const disconnectUser = async (req, res) => {
+
+  try {
+
+    const currentUser = await User.findById(req.user.id);
+
+    const otherUser = await User.findById(req.params.id);
+
+    if (!otherUser) {
+
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    currentUser.connections =
+      currentUser.connections.filter(
+        (id) => id.toString() !== otherUser._id.toString()
+      );
+
+    otherUser.connections =
+      otherUser.connections.filter(
+        (id) => id.toString() !== currentUser._id.toString()
+      );
+
+    await currentUser.save();
+    await otherUser.save();
+
+    res.json({
+      message: "Connection removed",
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      message: "Failed to remove connection",
+    });
+  }
+};
+
 const ignoreRequest = async (req, res) => {
 
   try {
@@ -540,6 +581,7 @@ module.exports = {
   sendRequest,
   getRequests,
   acceptRequest,
+  disconnectUser,
   ignoreRequest,
   getConnections,
   updateSettings,

@@ -22,6 +22,7 @@ import {
   FaTrash,
   FaTrophy,
   FaUserPlus,
+  FaUserMinus,
 } from "react-icons/fa";
 import { API_URL } from "../config";
 
@@ -97,6 +98,8 @@ function EditInput({ value, onChange, placeholder, multiline = false }) {
 function PostCard({ post, currentUserId, onDelete }) {
   const liked = post.likes?.includes(currentUserId);
   const isOwn = post.user?._id === currentUserId || post.user === currentUserId;
+  const commentCount = post.comments?.length || 0;
+  const shareCount = post.shares?.length || 0;
 
   return (
     <Card>
@@ -120,6 +123,9 @@ function PostCard({ post, currentUserId, onDelete }) {
         <span className="flex items-center gap-1">
           {liked ? <FaHeart className="text-red-400" /> : <FaRegHeart />}
           {post.likes?.length || 0}
+        </span>
+        <span>
+          {commentCount} comments · {shareCount} shares
         </span>
         <span>{timeAgo(post.createdAt)}</span>
       </div>
@@ -296,6 +302,23 @@ export default function Profile() {
     setRequesting(false);
   };
 
+  const disconnect = async () => {
+    if (!profile?._id) return;
+    setRequesting(true);
+    try {
+      await axios.post(`${API}/api/users/disconnect/${profile._id}`, {}, { headers });
+      setProfile((prev) => ({
+        ...prev,
+        isConnected: false,
+        requestSent: false,
+        connections: (prev.connections || []).filter((id) => id !== currentUser._id),
+      }));
+    } catch (err) {
+      console.log(err);
+    }
+    setRequesting(false);
+  };
+
   if (!profile) {
     return (
       <Layout>
@@ -383,12 +406,22 @@ export default function Profile() {
             {!isOwn && (
               <button
                 type="button"
-                onClick={sendRequest}
+                onClick={profile.isConnected ? disconnect : sendRequest}
                 disabled={requesting || profile.requestSent}
-                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 font-black flex items-center gap-2 disabled:opacity-60"
+                className={`px-5 py-3 rounded-2xl font-black flex items-center gap-2 disabled:opacity-60 ${
+                  profile.isConnected
+                    ? "bg-white/10 border border-white/10 text-white hover:bg-red-500/10 hover:text-red-300"
+                    : "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950"
+                }`}
               >
-                <FaUserPlus size={13} />
-                {profile.requestSent ? "Request sent" : requesting ? "Sending..." : "Connect"}
+                {profile.isConnected ? <FaUserMinus size={13} /> : <FaUserPlus size={13} />}
+                {requesting
+                  ? "Working..."
+                  : profile.isConnected
+                  ? "Connected"
+                  : profile.requestSent
+                  ? "Request sent"
+                  : "Connect"}
               </button>
             )}
           </div>

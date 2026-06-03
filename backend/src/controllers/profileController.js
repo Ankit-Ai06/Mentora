@@ -17,6 +17,7 @@ const restrictedProfile = (profile, viewerId) => ({
   isPrivate: profile.isPrivate,
   profileViews: profile.profileViews,
   connections: profile.connections,
+  isConnected: false,
   requestSent: profile.requests?.some((id) => id.toString() === viewerId.toString()),
   canViewFullProfile: false,
 });
@@ -104,8 +105,9 @@ const getPublicProfile = async (req, res) => {
     }
 
     const isOwn = profile._id.toString() === req.user.id;
+    const isConnected = isConnectedTo(profile, req.user.id);
     const canViewFullProfile =
-      isOwn || !profile.isPrivate || isConnectedTo(profile, req.user.id);
+      isOwn || !profile.isPrivate || isConnected;
 
     if (!isOwn) {
       profile.profileViews = (profile.profileViews || 0) + 1;
@@ -124,6 +126,7 @@ const getPublicProfile = async (req, res) => {
       ...profile.toObject(),
       posts,
       canViewFullProfile: true,
+      isConnected,
       requestSent: profile.requests?.some((id) => id.toString() === req.user.id),
     });
   } catch (error) {

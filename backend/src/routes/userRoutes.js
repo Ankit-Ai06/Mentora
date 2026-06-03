@@ -9,6 +9,7 @@ const {
   sendRequest,
   getRequests,
   acceptRequest,
+  disconnectUser,
   ignoreRequest,
   getConnections,
   updateSettings,
@@ -59,6 +60,12 @@ router.post(
   "/accept/:id",
   protect,
   acceptRequest
+);
+
+router.post(
+  "/disconnect/:id",
+  protect,
+  disconnectUser
 );
 
 router.post(
