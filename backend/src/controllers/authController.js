@@ -3,41 +3,13 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const dns = require("dns").promises;
 
+
 // ─── NODEMAILER SETUP ─────────────────────────────────────────────
-let transporter = null;
-let emailReady = false;
-(async () => {
-  try {
-    const nodemailer = require("nodemailer");
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.warn("⚠️  EMAIL_USER / EMAIL_PASS not set — dev mode (OTP printed to console)");
-      return;
-    }
-transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  requireTLS: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 30000,
-});
-    await transporter.verify();
-    emailReady = true;
-    console.log("✅ Email transporter ready — real emails will be sent");
-  } catch (err) {
-    transporter = null;
-    emailReady = false;
-    console.warn("⚠️  Email transporter failed:", err.message);
-  }
-})();
+// ─── RESEND SETUP ─────────────────────────────────────────────
+const { Resend } = require("resend");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 // ─── IN-MEMORY OTP STORES ─────────────────────────────────────────
 const otpStore = new Map();
 const signupOtpStore = new Map();
@@ -61,19 +33,16 @@ const otpHtml = (otpCode, heading, sub) => `
 
 // ─── SEND EMAIL HELPER ────────────────────────────────────────────
 const trySendEmail = async (to, subject, html, otpCode) => {
-  if (emailReady && transporter) {
-    await transporter.sendMail({
-      from: `"Mentora" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html,
-      text: `Your Mentora OTP code is: ${otpCode}. It expires in 10 minutes.`,
-    });
-    console.log(`✅ Email sent to ${to}`);
-    return true;
-  }
-  console.log(`📧 [DEV MODE] OTP for ${to}: ${otpCode}`);
-  return false;
+  await resend.emails.send({
+    from: process.env.EMAIL_FROM || "Mentora <onboarding@resend.dev>",
+    to,
+    subject,
+    html,
+    text: `Your Mentora OTP code is: ${otpCode}. It expires in 10 minutes.`,
+  });
+
+  console.log(`✅ OTP email sent to ${to}`);
+  return true;
 };
 
 // ─── DNS EMAIL DOMAIN CHECK ───────────────────────────────────────
@@ -162,10 +131,9 @@ const sendSignupOTP = async (req, res) => {
       otpCode
     );
 
-    res.json({
-      message: sent ? "OTP sent to your email" : "OTP generated (check server console)",
-      devOtp: !sent ? otpCode : undefined,
-    });
+  res.json({
+  message: "OTP sent to your email",
+});
   } catch (err) {
     console.error("[SIGNUP OTP] ❌ Error:", err.message);
     res.status(500).json({ message: "Failed to send OTP: " + err.message });
