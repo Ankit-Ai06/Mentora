@@ -28,7 +28,12 @@ function People() {
     try {
 
       const res = await axios.get(
-       `${API_URL}/api/users`
+       `${API_URL}/api/users`,
+       {
+         headers: {
+           Authorization: `Bearer ${token}`,
+         },
+       }
       );
 
       setUsers(res.data.filter((u) => u._id !== currentUser._id));
@@ -36,6 +41,37 @@ function People() {
     } catch (error) {
 
       console.log(error);
+    }
+  };
+
+  const acceptUser = async (id) => {
+    try {
+      await axios.post(
+        `${API_URL}/api/users/accept/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setUsers((prev) =>
+        prev.map((user) =>
+          user._id === id
+            ? {
+                ...user,
+                isConnected: true,
+                requestReceived: false,
+                requestSent: false,
+                connections: [...(user.connections || []), currentUser._id],
+              }
+            : user
+        )
+      );
+    } catch (error) {
+      console.log(error);
+      alert("Confirm failed");
     }
   };
 
@@ -178,12 +214,18 @@ function People() {
 
               {/* Button */}
               <button
-                disabled={user.requestSent || user.connections?.includes(currentUser._id)}
-                onClick={() => connectUser(user._id)}
-                className="mt-6 w-full bg-gradient-to-r from-cyan-400 to-blue-500 py-2 rounded-2xl font-bold hover:scale-105 transition-all duration-300 disabled:opacity-60 disabled:hover:scale-100"
+                disabled={user.requestSent || user.isConnected || user.connections?.includes(currentUser._id)}
+                onClick={() => user.requestReceived ? acceptUser(user._id) : connectUser(user._id)}
+                className={`mt-6 w-full py-2 rounded-2xl font-bold hover:scale-105 transition-all duration-300 disabled:opacity-70 disabled:hover:scale-100 ${
+                  user.requestReceived
+                    ? "bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950"
+                    : "bg-gradient-to-r from-cyan-400 to-blue-500"
+                }`}
               >
-                {user.connections?.includes(currentUser._id)
+                {user.isConnected || user.connections?.includes(currentUser._id)
                   ? "Connected"
+                  : user.requestReceived
+                  ? "Confirm"
                   : user.requestSent
                   ? "Request sent"
                   : "Connect"}

@@ -24,7 +24,7 @@ router.post("/register", registerUser);
 
 router.post("/login", loginUser);
 
-router.get("/", getUsers);
+router.get("/", protect, getUsers);
 
 router.post(
   "/connect/:id",

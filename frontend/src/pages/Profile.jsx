@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import Layout from "../components/Layout";
 import {
@@ -8,6 +8,7 @@ import {
   FaCertificate,
   FaCheck,
   FaComment,
+  FaComments,
   FaEdit,
   FaGithub,
   FaGlobe,
@@ -37,6 +38,15 @@ function timeAgo(date) {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)}d ago`;
+}
+
+function lastSeenText(dateStr) {
+  if (!dateStr) return "Last seen recently";
+  const seconds = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+  if (seconds < 60) return "Last seen just now";
+  if (seconds < 3600) return `Last seen ${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `Last seen ${Math.floor(seconds / 3600)}h ago`;
+  return `Last seen ${Math.floor(seconds / 86400)}d ago`;
 }
 
 function imageSrc(src) {
@@ -223,6 +233,7 @@ function PostCard({ post, currentUserId, onDelete, onDeleteComment }) {
 
 export default function Profile() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const token = localStorage.getItem("token");
   const isOwn = !id || id === currentUser._id;
@@ -415,6 +426,24 @@ export default function Profile() {
     setRequesting(false);
   };
 
+  const acceptRequest = async () => {
+    if (!profile?._id) return;
+    setRequesting(true);
+    try {
+      await axios.post(`${API}/api/users/accept/${profile._id}`, {}, { headers });
+      setProfile((prev) => ({
+        ...prev,
+        isConnected: true,
+        requestReceived: false,
+        requestSent: false,
+        connections: [...(prev.connections || []), currentUser._id],
+      }));
+    } catch (err) {
+      console.log(err);
+    }
+    setRequesting(false);
+  };
+
   const disconnect = async () => {
     if (!profile?._id) return;
     setRequesting(true);
@@ -450,6 +479,7 @@ export default function Profile() {
   };
   const mentorConnected = !isOwn && profile.isConnected && profile.mentorshipAvailable;
   const showPresence = !isOwn && profile.preferences?.showOnlineStatus !== false;
+  const canMessage = !isOwn && (!profile.isPrivate || profile.isConnected);
 
   return (
     <Layout>
@@ -543,6 +573,11 @@ export default function Profile() {
               )}
             </div>
             {profile.headline && <p className="text-gray-300 mt-2">{profile.headline}</p>}
+            {!isOwn && (
+              <p className="text-cyan-300 text-sm mt-2">
+                {showPresence && profile.isOnline ? "Active now" : lastSeenText(profile.lastSeen)}
+              </p>
+            )}
             {profile.location && (
               <p className="flex items-center gap-2 text-gray-500 text-sm mt-2">
                 <FaMapMarkerAlt size={12} /> {profile.location}
@@ -552,25 +587,46 @@ export default function Profile() {
 
           <div className="flex items-center gap-3 flex-wrap">
             {!isOwn && (
-              <button
-                type="button"
-                onClick={profile.isConnected ? disconnect : sendRequest}
-                disabled={requesting || profile.requestSent}
-                className={`px-5 py-3 rounded-2xl font-black flex items-center gap-2 disabled:opacity-60 ${
-                  profile.isConnected
-                    ? "bg-white/10 border border-white/10 text-white hover:bg-red-500/10 hover:text-red-300"
-                    : "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950"
-                }`}
-              >
-                {profile.isConnected ? <FaUserMinus size={13} /> : <FaUserPlus size={13} />}
-                {requesting
-                  ? "Working..."
-                  : profile.isConnected
-                  ? "Connected"
-                  : profile.requestSent
-                  ? "Request sent"
-                  : "Connect"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={
+                    profile.isConnected
+                      ? disconnect
+                      : profile.requestReceived
+                      ? acceptRequest
+                      : sendRequest
+                  }
+                  disabled={requesting || profile.requestSent}
+                  className={`px-5 py-3 rounded-2xl font-black flex items-center gap-2 disabled:opacity-60 ${
+                    profile.isConnected
+                      ? "bg-white/10 border border-white/10 text-white hover:bg-red-500/10 hover:text-red-300"
+                      : profile.requestReceived
+                      ? "bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950"
+                      : "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950"
+                  }`}
+                >
+                  {profile.isConnected ? <FaUserMinus size={13} /> : <FaUserPlus size={13} />}
+                  {requesting
+                    ? "Working..."
+                    : profile.isConnected
+                    ? "Connected"
+                    : profile.requestReceived
+                    ? "Confirm"
+                    : profile.requestSent
+                    ? "Request sent"
+                    : "Connect"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/chat", { state: { userId: profile._id, user: profile } })}
+                  disabled={!canMessage}
+                  className="px-5 py-3 rounded-2xl font-black flex items-center gap-2 bg-white/10 border border-white/10 text-white hover:bg-cyan-400/10 hover:text-cyan-300 disabled:opacity-50 disabled:hover:bg-white/10 disabled:hover:text-white"
+                  title={canMessage ? "Message" : "Connect first to message this private profile"}
+                >
+                  <FaComments size={13} /> Message
+                </button>
+              </>
             )}
           </div>
         </div>

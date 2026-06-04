@@ -12,6 +12,7 @@ import {
   FaCheck,
   FaCheckDouble,
   FaForward,
+  FaArrowLeft,
 } from "react-icons/fa";
 import io from "socket.io-client";
 
@@ -24,15 +25,15 @@ const profileImageSrc = mediaUrl;
 // ─── HELPERS ──────────────────────────────────────────────────────
 
 function formatLastSeen(dateStr) {
-  if (!dateStr) return "Offline";
+  if (!dateStr) return "Last seen recently";
   const date = new Date(dateStr);
   const now = new Date();
   const diff = Math.floor((now - date) / 1000); // seconds
 
-  if (diff < 60) return "Active just now";
-  if (diff < 3600) return `Active ${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `Active ${Math.floor(diff / 3600)}h ago`;
-  return `Active ${Math.floor(diff / 86400)}d ago`;
+  if (diff < 60) return "Last seen just now";
+  if (diff < 3600) return `Last seen ${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `Last seen ${Math.floor(diff / 3600)}h ago`;
+  return `Last seen ${Math.floor(diff / 86400)}d ago`;
 }
 
 function MessageStatusIcon({ status, isOwn }) {
@@ -245,7 +246,7 @@ function MessageBubble({ msg, isOwn, currentUser, onContextMenu }) {
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} group`}>
       <div
         onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, msg); }}
-        className={`max-w-[62%] rounded-2xl shadow-lg cursor-context-menu select-none ${
+        className={`max-w-[86%] md:max-w-[62%] rounded-2xl shadow-lg cursor-context-menu select-none ${
           isOwn
             ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-br-sm"
             : "bg-white/10 backdrop-blur-xl text-white rounded-bl-sm"
@@ -305,6 +306,7 @@ function Chat() {
   currentUser.preferences = { ...(currentUser.preferences || {}), ...savedPrefs };
 
   const [users, setUsers] = useState([]);
+  const [searchableUsers, setSearchableUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -320,16 +322,23 @@ function Chat() {
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
   const selectedUserRef = useRef(null);
+  const searchableUsersRef = useRef([]);
   const openedFromStateRef = useRef("");
   const refreshBadges = () =>
     window.dispatchEvent(new Event("mentora:refresh-badges"));
 
   // keep ref in sync so socket callbacks have current value
   useEffect(() => { selectedUserRef.current = selectedUser; }, [selectedUser]);
+  useEffect(() => { searchableUsersRef.current = searchableUsers; }, [searchableUsers]);
 
   // ── SOCKET SETUP ───────────────────────────────────────────────
   useEffect(() => {
-    socketRef.current = io(API);
+    socketRef.current = io(API, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 800,
+    });
     socketRef.current.emit("join", currentUser._id);
 
     // receive new message
@@ -354,12 +363,47 @@ function Chat() {
 
       // update sidebar last message
       setUsers((prevUsers) => {
+        let changedUser = null;
+        const updated = prevUsers.map((u) => {
+          if (u._id === message.senderId || u._id === message.receiverId) {
+            const isActive = active?._id === u._id;
+            const isIncoming = message.senderId === u._id;
+            changedUser = {
+              ...u,
+              hiddenChat: false,
+              lastMessage: message.unsent ? "This message was unsent" : message.text,
+              unreadCount: isIncoming && !isActive ? (u.unreadCount || 0) + 1 : 0,
+              updatedAt: new Date(),
+            };
+            return changedUser;
+          }
+          return u;
+        });
+        if (!changedUser) {
+          const restored = searchableUsersRef.current.find(
+            (u) => u._id === message.senderId || u._id === message.receiverId
+          );
+          if (restored) {
+            updated.unshift({
+              ...restored,
+              hiddenChat: false,
+              lastMessage: message.unsent ? "This message was unsent" : message.text,
+              unreadCount: message.senderId === restored._id ? 1 : 0,
+              updatedAt: new Date(),
+            });
+          }
+        }
+        updated.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+        return updated;
+      });
+      setSearchableUsers((prevUsers) => {
         const updated = prevUsers.map((u) => {
           if (u._id === message.senderId || u._id === message.receiverId) {
             const isActive = active?._id === u._id;
             const isIncoming = message.senderId === u._id;
             return {
               ...u,
+              hiddenChat: false,
               lastMessage: message.unsent ? "This message was unsent" : message.text,
               unreadCount: isIncoming && !isActive ? (u.unreadCount || 0) + 1 : 0,
               updatedAt: new Date(),
@@ -434,14 +478,24 @@ function Chat() {
       const res = await fetch(`${API}/api/users/connections`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      const searchRes = await fetch(`${API}/api/users/connections?includeHidden=true`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
-      if (!Array.isArray(data)) { setUsers([]); return; }
+      const searchData = await searchRes.json();
+      if (!Array.isArray(data)) { setUsers([]); setSearchableUsers([]); return; }
       const filtered = data.filter((u) => u?._id && u._id !== currentUser._id);
       filtered.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+      const searchable = Array.isArray(searchData)
+        ? searchData.filter((u) => u?._id && u._id !== currentUser._id)
+        : filtered;
+      searchable.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
       setUsers(filtered);
+      setSearchableUsers(searchable);
     } catch (err) {
       console.log(err);
       setUsers([]);
+      setSearchableUsers([]);
     }
   }, [currentUser._id]);
 
@@ -489,12 +543,27 @@ function Chat() {
   // ── SEND MESSAGE ───────────────────────────────────────────────
   useEffect(() => {
     const userId = location.state?.userId;
-    if (!userId || openedFromStateRef.current === userId || users.length === 0) return;
+    if (!userId || openedFromStateRef.current === userId) return;
 
     const target = users.find((user) => user._id === userId);
     if (target) {
       openedFromStateRef.current = userId;
       const id = window.setTimeout(() => selectUser(target), 0);
+      return () => window.clearTimeout(id);
+    }
+
+    if (location.state?.user?._id) {
+      openedFromStateRef.current = userId;
+      const stateUser = location.state.user;
+      const id = window.setTimeout(() => {
+        setUsers((prev) => (
+          prev.some((user) => user._id === stateUser._id) ? prev : [stateUser, ...prev]
+        ));
+        setSearchableUsers((prev) => (
+          prev.some((user) => user._id === stateUser._id) ? prev : [stateUser, ...prev]
+        ));
+        selectUser(stateUser);
+      }, 0);
       return () => window.clearTimeout(id);
     }
     return undefined;
@@ -530,11 +599,26 @@ function Chat() {
 
       // update sidebar
       setUsers((prev) => {
-        const updated = prev.map((u) =>
-          u._id === selectedUser._id
-            ? { ...u, lastMessage: saved.text, unreadCount: 0, updatedAt: new Date() }
-            : u
-        );
+        const exists = prev.some((u) => u._id === selectedUser._id);
+        const updated = exists
+          ? prev.map((u) =>
+              u._id === selectedUser._id
+                ? { ...u, lastMessage: saved.text, unreadCount: 0, updatedAt: new Date() }
+                : u
+            )
+          : [{ ...selectedUser, lastMessage: saved.text, unreadCount: 0, updatedAt: new Date() }, ...prev];
+        updated.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+        return updated;
+      });
+      setSearchableUsers((prev) => {
+        const exists = prev.some((u) => u._id === selectedUser._id);
+        const updated = exists
+          ? prev.map((u) =>
+              u._id === selectedUser._id
+                ? { ...u, hiddenChat: false, lastMessage: saved.text, unreadCount: 0, updatedAt: new Date() }
+                : u
+            )
+          : [{ ...selectedUser, hiddenChat: false, lastMessage: saved.text, unreadCount: 0, updatedAt: new Date() }, ...prev];
         updated.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
         return updated;
       });
@@ -639,6 +723,13 @@ function Chat() {
       });
 
       setUsers((prev) => prev.filter((user) => user._id !== deleteTarget._id));
+      setSearchableUsers((prev) =>
+        prev.map((user) =>
+          user._id === deleteTarget._id
+            ? { ...user, hiddenChat: true, lastMessage: "", unreadCount: 0 }
+            : user
+        )
+      );
       if (selectedUser?._id === deleteTarget._id) {
         setSelectedUser(null);
         setMessages([]);
@@ -655,12 +746,12 @@ function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const filteredUsers = users.filter(
+  const listSource = search.trim() ? searchableUsers : users;
+  const filteredUsers = listSource.filter(
     (u) => u?.fullName?.toLowerCase().includes(search.toLowerCase())
   );
 
   const canShowOnline = (user) => user?.preferences?.showOnlineStatus !== false;
-  const canShowLastSeen = (user) => user?.preferences?.showLastSeen !== false;
 
   // ─── RENDER ──────────────────────────────────────────────────────
 
@@ -727,10 +818,10 @@ function Chat() {
         />
       )}
 
-      <div className="h-[92vh] flex rounded-[35px] overflow-hidden border border-white/10 bg-white/5 backdrop-blur-2xl">
+      <div className="h-[calc(100vh-2.5rem)] md:h-[92vh] flex rounded-2xl md:rounded-[35px] overflow-hidden border border-white/10 bg-white/5 backdrop-blur-2xl">
 
         {/* ── LEFT SIDEBAR ── */}
-        <div className="w-[280px] md:w-[350px] border-r border-white/10 flex flex-col">
+        <div className={`${selectedUser ? "hidden md:flex" : "flex"} w-full md:w-[350px] border-r border-white/10 flex-col`}>
 
           {/* Header */}
           <div className="p-6 border-b border-white/10">
@@ -819,11 +910,19 @@ function Chat() {
         </div>
 
         {/* ── RIGHT CHAT PANEL ── */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className={`${selectedUser ? "flex" : "hidden md:flex"} flex-1 flex-col min-w-0`}>
           {selectedUser ? (
             <>
               {/* Chat Header */}
-              <div className="p-5 border-b border-white/10 flex items-center gap-4 bg-white/5 shrink-0">
+              <div className="p-3 md:p-5 border-b border-white/10 flex items-center gap-3 md:gap-4 bg-white/5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedUser(null)}
+                  className="md:hidden w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-white"
+                  title="Back to chats"
+                >
+                  <FaArrowLeft />
+                </button>
                 <div className="relative shrink-0">
                   <Link to={`/profile/${selectedUser._id}`}>
                     {selectedUser.profileImage || selectedUser.profilePicture ? (
@@ -848,7 +947,7 @@ function Chat() {
                 </div>
 
                 <div>
-                  <Link to={`/profile/${selectedUser._id}`} className="text-2xl font-black text-white hover:text-cyan-300">
+                  <Link to={`/profile/${selectedUser._id}`} className="text-lg md:text-2xl font-black text-white hover:text-cyan-300">
                     {selectedUser.fullName}
                   </Link>
                   <p className="text-cyan-300 text-sm">
@@ -856,15 +955,13 @@ function Chat() {
                       ? "Typing..."
                       : canShowOnline(selectedUser) && selectedUser.isOnline
                       ? "Active now"
-                      : canShowLastSeen(selectedUser)
-                      ? formatLastSeen(selectedUser.lastSeen)
-                      : "Offline"}
+                      : formatLastSeen(selectedUser.lastSeen)}
                   </p>
                 </div>
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-gradient-to-b from-transparent to-black/10">
+              <div className="flex-1 overflow-y-auto p-3 md:p-5 space-y-3 bg-gradient-to-b from-transparent to-black/10">
                 {messages.map((msg, i) => {
                   const isOwn = msg.senderId === currentUser._id;
                   return (
@@ -901,7 +998,7 @@ function Chat() {
               />
 
               {/* Input */}
-              <div className="p-5 border-t border-white/10 bg-white/5 shrink-0">
+              <div className="p-3 md:p-5 border-t border-white/10 bg-white/5 shrink-0">
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -909,12 +1006,12 @@ function Chat() {
                     value={newMessage}
                     onChange={handleTyping}
                     onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
-                    className="flex-1 bg-white/10 border border-white/10 rounded-2xl px-5 py-3.5 outline-none text-white placeholder-gray-400 focus:border-cyan-400/40 transition-colors"
+                    className="flex-1 min-w-0 bg-white/10 border border-white/10 rounded-2xl px-4 md:px-5 py-3 md:py-3.5 outline-none text-white placeholder-gray-400 focus:border-cyan-400/40 transition-colors"
                   />
 
                   <button
                     onClick={sendMessage}
-                    className="w-14 h-14 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center hover:scale-105 transition-all duration-300 shadow-xl shrink-0"
+                    className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center hover:scale-105 transition-all duration-300 shadow-xl shrink-0"
                   >
                     <FaPaperPlane className="text-white text-lg" />
                   </button>

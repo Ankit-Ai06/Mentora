@@ -134,9 +134,31 @@ const getUsers = async (req, res) => {
 
   try {
 
-    const users = await User.find().select("-password");
+    const currentUser = req.user?.id
+      ? await User.findById(req.user.id).select("connections requests").lean()
+      : null;
 
-    res.json(users);
+    const users = await User.find().select("-password").lean();
+
+    const enriched = users.map((user) => {
+      const userId = user._id.toString();
+      const connections = (user.connections || []).map((id) => id.toString());
+      const requests = (user.requests || []).map((id) => id.toString());
+
+      return {
+        ...user,
+        isConnected: currentUser
+          ? (currentUser.connections || []).some((id) => id.toString() === userId)
+          : false,
+        requestSent: currentUser ? requests.includes(req.user.id) : false,
+        requestReceived: currentUser
+          ? (currentUser.requests || []).some((id) => id.toString() === userId)
+          : false,
+        connections,
+      };
+    });
+
+    res.json(enriched);
 
   } catch (error) {
 
@@ -172,6 +194,42 @@ const sendRequest = async (req, res) => {
     const sender = await User.findById(senderId);
 
     if (
+      sender?.requests?.some(
+        (id) => id.toString() === receiverId
+      )
+    ) {
+      sender.requests = sender.requests.filter(
+        (id) => id.toString() !== receiverId
+      );
+
+      if (!receiver.connections.some((id) => id.toString() === senderId)) {
+        receiver.connections.push(senderId);
+      }
+
+      if (!sender.connections.some((id) => id.toString() === receiverId)) {
+        sender.connections.push(receiverId);
+      }
+
+      await receiver.save();
+      await sender.save();
+
+      await setRequestNotifications(senderId, receiverId, "accepted");
+
+      await Notification.create({
+        receiver: receiverId,
+        sender: senderId,
+        type: "request_accepted",
+        text: "accepted your connection request",
+        actionStatus: "accepted",
+      });
+
+      return res.json({
+        message: "Connection accepted",
+        status: "connected",
+      });
+    }
+
+    if (
       receiver.connections.some(
         (id) => id.toString() === senderId
       )
@@ -179,38 +237,6 @@ const sendRequest = async (req, res) => {
 
       return res.status(400).json({
         message: "Already connected",
-      });
-    }
-
-    if (!receiver.isPrivate) {
-      if (!receiver.connections.some((id) => id.toString() === senderId)) {
-        receiver.connections.push(senderId);
-      }
-
-      if (
-        sender &&
-        !sender.connections.some((id) => id.toString() === receiverId)
-      ) {
-        sender.connections.push(receiverId);
-      }
-
-      await receiver.save();
-      if (sender) await sender.save();
-
-      await setRequestNotifications(receiverId, senderId, "accepted");
-      await setRequestNotifications(senderId, receiverId, "accepted");
-
-      await Notification.create({
-        receiver: receiverId,
-        sender: senderId,
-        type: "request_accepted",
-        text: "connected with you",
-        actionStatus: "accepted",
-      });
-
-      return res.json({
-        message: "Connected",
-        status: "connected",
       });
     }
 
@@ -255,6 +281,7 @@ res.json({
 const getRequests = async (req, res) => {
 
   try {
+    const includeHidden = req.query.includeHidden === "true";
 
     const user = await User.findById(req.user.id)
       .populate("requests", "fullName email role");
@@ -452,7 +479,15 @@ const getConnections = async (req, res) => {
           hidden &&
           (!lastMessage || new Date(lastMessage.createdAt) <= new Date(hidden.hiddenAt))
         ) {
-          return null;
+          if (!includeHidden) return null;
+
+          return {
+            ...connection.toObject(),
+            hiddenChat: true,
+            lastMessage: "",
+            unreadCount: 0,
+            updatedAt: hidden.hiddenAt || connection.updatedAt,
+          };
         }
 
         const unreadCount = await Message.countDocuments({

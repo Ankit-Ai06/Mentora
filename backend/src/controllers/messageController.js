@@ -24,6 +24,11 @@ const sendMessage = async (req, res) => {
     // populate replyTo so the frontend gets the quoted text immediately
     await newMessage.populate("replyTo", "text senderId unsent");
 
+    await User.updateMany(
+      { _id: { $in: [senderId, receiverId] } },
+      { $pull: { hiddenChats: { userId: { $in: [senderId, receiverId] } } } }
+    );
+
     await Notification.create({
       receiver: receiverId,
       sender: senderId,

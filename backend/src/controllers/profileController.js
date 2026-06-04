@@ -19,22 +19,32 @@ const restrictedProfile = (profile, viewerId) => ({
   connections: profile.connections,
   isConnected: false,
   requestSent: profile.requests?.some((id) => id.toString() === viewerId.toString()),
+  requestReceived: false,
   mentorshipAvailable: profile.mentorshipAvailable,
+  preferences: profile.preferences,
+  isOnline: profile.isOnline,
+  lastSeen: profile.lastSeen,
   canViewFullProfile: false,
 });
 
 const recordProfileView = async (profile, viewerId) => {
   if (!profile || profile._id.toString() === viewerId.toString()) return;
 
-  const alreadyViewed = profile.profileViewers?.some(
-    (id) => id.toString() === viewerId.toString()
+  const result = await User.updateOne(
+    {
+      _id: profile._id,
+      profileViewers: { $ne: viewerId },
+    },
+    {
+      $addToSet: { profileViewers: viewerId },
+      $inc: { profileViews: 1 },
+    }
   );
 
-  if (alreadyViewed) return;
-
-  profile.profileViewers = [...(profile.profileViewers || []), viewerId];
-  profile.profileViews = (profile.profileViews || 0) + 1;
-  await profile.save();
+  if (result.modifiedCount > 0) {
+    profile.profileViews = (profile.profileViews || 0) + 1;
+    profile.profileViewers = [...(profile.profileViewers || []), viewerId];
+  }
 };
 
 // GET PROFILE
@@ -123,13 +133,20 @@ const getPublicProfile = async (req, res) => {
 
     const isOwn = profile._id.toString() === req.user.id;
     const isConnected = isConnectedTo(profile, req.user.id);
+    const currentUser = await User.findById(req.user.id).select("requests");
+    const requestReceived = currentUser?.requests?.some(
+      (id) => id.toString() === profile._id.toString()
+    );
     const canViewFullProfile =
       isOwn || !profile.isPrivate || isConnected;
 
     await recordProfileView(profile, req.user.id);
 
     if (!canViewFullProfile) {
-      return res.json(restrictedProfile(profile, req.user.id));
+      return res.json({
+        ...restrictedProfile(profile, req.user.id),
+        requestReceived: !!requestReceived,
+      });
     }
 
     const posts = await Post.find({ user: profile._id })
@@ -143,6 +160,7 @@ const getPublicProfile = async (req, res) => {
       canViewFullProfile: true,
       isConnected,
       requestSent: profile.requests?.some((id) => id.toString() === req.user.id),
+      requestReceived: !!requestReceived,
     });
   } catch (error) {
     res.status(500).json({

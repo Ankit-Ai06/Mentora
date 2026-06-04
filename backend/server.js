@@ -25,7 +25,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || true,
     methods: ["GET", "POST", "PUT", "DELETE"],
   },
 });
@@ -33,12 +33,42 @@ const io = new Server(server, {
 // ─── ONLINE USERS MAP  userId → socketId ─────────────────────────
 const onlineUsers = new Map();
 
+const onlineUserIds = () => Array.from(onlineUsers.keys());
+
+const addOnlineSocket = (userId, socketId) => {
+  const sockets = onlineUsers.get(userId) || new Set();
+  sockets.add(socketId);
+  onlineUsers.set(userId, sockets);
+};
+
+const removeOnlineSocket = (socketId) => {
+  for (let [userId, sockets] of onlineUsers.entries()) {
+    if (!sockets.has(socketId)) continue;
+    sockets.delete(socketId);
+    if (sockets.size === 0) {
+      onlineUsers.delete(userId);
+      return { userId, isOffline: true };
+    }
+    onlineUsers.set(userId, sockets);
+    return { userId, isOffline: false };
+  }
+  return null;
+};
+
+const emitToUser = (userId, event, payload) => {
+  const sockets = onlineUsers.get(userId);
+  if (!sockets) return false;
+  sockets.forEach((socketId) => io.to(socketId).emit(event, payload));
+  return true;
+};
+
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
   // ── JOIN ──────────────────────────────────────────────────────
   socket.on("join", async (userId) => {
-    onlineUsers.set(userId, socket.id);
+    socket.data.userId = userId;
+    addOnlineSocket(userId, socket.id);
 
     await User.findByIdAndUpdate(userId, { isOnline: true });
 
@@ -56,25 +86,23 @@ io.on("connection", (socket) => {
 
     const senderIds = [...new Set(deliveredMsgs.map((m) => m.senderId.toString()))];
     senderIds.forEach((sid) => {
-      const sSocket = onlineUsers.get(sid);
-      if (sSocket) {
-        io.to(sSocket).emit("messagesDelivered", { toReceiverId: userId });
-      }
+      emitToUser(sid, "messagesDelivered", { toReceiverId: userId });
     });
 
-    io.emit("onlineUsers", Array.from(onlineUsers.keys()));
+    io.emit("onlineUsers", onlineUserIds());
   });
 
   // ── SEND MESSAGE ──────────────────────────────────────────────
   socket.on("sendMessage", async (message) => {
-    const receiverSocketId = onlineUsers.get(message.receiverId);
+    const delivered = emitToUser(message.receiverId, "receiveMessage", {
+      ...message,
+      status: "delivered",
+    });
 
-    if (receiverSocketId) {
+    if (delivered) {
       // receiver is online → mark delivered immediately
       await Message.findByIdAndUpdate(message._id, { status: "delivered" });
       message.status = "delivered";
-
-      io.to(receiverSocketId).emit("receiveMessage", message);
 
       // tell sender it's delivered
       socket.emit("messageStatusUpdate", {
@@ -94,14 +122,11 @@ io.on("connection", (socket) => {
     );
 
     if (updated.modifiedCount > 0) {
-      const senderSocketId = onlineUsers.get(senderId);
-      if (senderSocketId) {
-        io.to(senderSocketId).emit("messageStatusUpdate", {
-          senderId,
-          receiverId,
-          status: "seen",
-        });
-      }
+      emitToUser(senderId, "messageStatusUpdate", {
+        senderId,
+        receiverId,
+        status: "seen",
+      });
     }
   });
 
@@ -109,44 +134,32 @@ io.on("connection", (socket) => {
   socket.on("unsendMessage", async ({ messageId, senderId, receiverId }) => {
     await Message.findByIdAndUpdate(messageId, { unsent: true, text: "" });
 
-    const receiverSocketId = onlineUsers.get(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("messageUnsent", { messageId });
-    }
+    emitToUser(receiverId, "messageUnsent", { messageId });
 
     socket.emit("messageUnsent", { messageId });
   });
 
   // ── TYPING INDICATOR ─────────────────────────────────────────
   socket.on("typing", ({ senderId, receiverId }) => {
-    const receiverSocketId = onlineUsers.get(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("typing", { senderId });
-    }
+    emitToUser(receiverId, "typing", { senderId });
   });
 
   socket.on("stopTyping", ({ senderId, receiverId }) => {
-    const receiverSocketId = onlineUsers.get(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("stopTyping", { senderId });
-    }
+    emitToUser(receiverId, "stopTyping", { senderId });
   });
 
   // ── DISCONNECT ────────────────────────────────────────────────
   socket.on("disconnect", async () => {
-    for (let [userId, socketId] of onlineUsers.entries()) {
-      if (socketId === socket.id) {
-        onlineUsers.delete(userId);
+    const removed = removeOnlineSocket(socket.id);
 
-        await User.findByIdAndUpdate(userId, {
-          isOnline: false,
-          lastSeen: new Date(),
-        });
-        break;
-      }
+    if (removed?.isOffline) {
+      await User.findByIdAndUpdate(removed.userId, {
+        isOnline: false,
+        lastSeen: new Date(),
+      });
     }
 
-    io.emit("onlineUsers", Array.from(onlineUsers.keys()));
+    io.emit("onlineUsers", onlineUserIds());
     console.log("User disconnected:", socket.id);
   });
 });

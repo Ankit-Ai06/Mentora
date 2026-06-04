@@ -258,7 +258,6 @@ function Settings() {
     connectionNotifications: true,
     privateAccount: false,
     showOnlineStatus: true,
-    showLastSeen: true,
     readReceipts: true,
     darkMode: false,
     twoFactor: false,
@@ -321,7 +320,6 @@ function Settings() {
             messageNotifications: nextPrefs.messageNotifications,
             connectionNotifications: nextPrefs.connectionNotifications,
             showOnlineStatus: nextPrefs.showOnlineStatus,
-            showLastSeen: nextPrefs.showLastSeen,
             readReceipts: nextPrefs.readReceipts,
             darkMode: nextPrefs.darkMode,
             twoFactor: nextPrefs.twoFactor,
@@ -493,13 +491,6 @@ function Settings() {
             sublabel="Let others see when you're active"
             value={prefs.showOnlineStatus}
             onChange={setPref("showOnlineStatus")}
-          />
-          <ToggleRow
-            icon={<FaEye />}
-            label="Show Last Seen"
-            sublabel="Let others see your last active time"
-            value={prefs.showLastSeen}
-            onChange={setPref("showLastSeen")}
           />
           <ToggleRow
             icon={<FaCheck />}
