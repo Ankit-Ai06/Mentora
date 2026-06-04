@@ -99,9 +99,11 @@ function Connections() {
                     {user.fullName?.charAt(0)}
                   </div>
                 )}
-                <span className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-slate-900 ${
-                  user.isOnline ? "bg-green-400" : "bg-gray-500"
-                }`} />
+                {user.preferences?.showOnlineStatus !== false && (
+                  <span className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-slate-900 ${
+                    user.isOnline ? "bg-green-400" : "bg-gray-500"
+                  }`} />
+                )}
               </Link>
 
               <div className="text-center mt-6">
@@ -115,7 +117,7 @@ function Connections() {
                 </p>
 
                 <p className="text-cyan-400 mt-1">
-                  {user.isOnline ? "Online" : user.role}
+                  {user.preferences?.showOnlineStatus !== false && user.isOnline ? "Online" : user.role}
                 </p>
 
               </div>

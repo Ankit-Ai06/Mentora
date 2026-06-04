@@ -383,6 +383,7 @@ export default function Profile() {
     portfolio: profile.socialLinks?.portfolio,
   };
   const mentorConnected = !isOwn && profile.isConnected && profile.mentorshipAvailable;
+  const showPresence = !isOwn && profile.preferences?.showOnlineStatus !== false;
 
   return (
     <Layout>
@@ -442,6 +443,11 @@ export default function Profile() {
                 <div className="w-28 h-28 rounded-full border-4 border-slate-950 bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-4xl font-black text-slate-950">
                   {profile.fullName?.charAt(0)}
                 </div>
+              )}
+              {showPresence && (
+                <span className={`absolute bottom-2 right-2 w-5 h-5 rounded-full border-4 border-slate-950 ${
+                  profile.isOnline ? "bg-green-400" : "bg-gray-500"
+                }`} />
               )}
                 </>
               )}

@@ -159,6 +159,42 @@ function ShareModal({ post, connections, currentUser, onSend, onClose }) {
   );
 }
 
+function CommentActionMenu({ x, y, onDelete, onClose }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const close = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) onClose();
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "fixed",
+        top: Math.min(y, window.innerHeight - 90),
+        left: Math.min(x, window.innerWidth - 170),
+        zIndex: 80,
+      }}
+      className="mentora-menu bg-slate-900 border border-white/10 rounded-2xl shadow-2xl py-2 min-w-[150px]"
+    >
+      <button
+        type="button"
+        onClick={() => {
+          onDelete();
+          onClose();
+        }}
+        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10"
+      >
+        <FaTrash size={12} /> Delete comment
+      </button>
+    </div>
+  );
+}
+
 // ─── POST CARD ────────────────────────────────────────────────────
 function PostCard({
   post,
@@ -171,7 +207,8 @@ function PostCard({
   onDelete,
 }) {
   const [showMenu, setShowMenu] = useState(false);
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState((post.comments || []).length > 0);
+  const [commentMenu, setCommentMenu] = useState(null);
   const [commentText, setCommentText] = useState("");
   const [commenting, setCommenting] = useState(false);
   const isOwn = post.user?._id === currentUserId;
@@ -196,7 +233,15 @@ function PostCard({
   };
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden hover:border-white/20 transition-all duration-300">
+    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-cyan-400/25 hover:shadow-xl hover:shadow-cyan-500/5 transition-all duration-300">
+      {commentMenu && (
+        <CommentActionMenu
+          x={commentMenu.x}
+          y={commentMenu.y}
+          onClose={() => setCommentMenu(null)}
+          onDelete={() => onDeleteComment(post._id, commentMenu.commentId)}
+        />
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
@@ -310,7 +355,19 @@ function PostCard({
                   comment.user?._id === currentUserId || post.user?._id === currentUserId;
 
                 return (
-                  <div key={comment._id} className="flex items-start gap-2">
+                  <div
+                    key={comment._id}
+                    className="flex items-start gap-2"
+                    onContextMenu={(e) => {
+                      if (!canDelete) return;
+                      e.preventDefault();
+                      setCommentMenu({
+                        x: e.clientX,
+                        y: e.clientY,
+                        commentId: comment._id,
+                      });
+                    }}
+                  >
                     <Avatar user={comment.user} size="sm" linked />
                     <div className="flex-1 min-w-0">
                       <div className="bg-white/5 rounded-2xl px-3 py-2">

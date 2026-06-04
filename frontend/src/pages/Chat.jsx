@@ -48,7 +48,7 @@ function LinkifiedText({ text }) {
   const parts = String(text || "").split(/(https?:\/\/[^\s]+)/g);
 
   return (
-    <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
+    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
       {parts.map((part, index) =>
         /^https?:\/\/[^\s]+$/.test(part) ? (
           <a
@@ -157,7 +157,7 @@ function ContextMenu({ x, y, message, isOwn, onClose, onReply, onCopy, onUnsend,
     <div
       ref={ref}
       style={menuStyle}
-      className="bg-slate-800 border border-white/10 rounded-2xl shadow-2xl py-2 min-w-[160px] animate-in fade-in zoom-in duration-150"
+      className="mentora-menu bg-slate-800 border border-white/10 rounded-2xl shadow-2xl py-2 min-w-[160px] animate-in fade-in zoom-in duration-150"
     >
       {items.map((item) => (
         <button
@@ -171,6 +171,42 @@ function ContextMenu({ x, y, message, isOwn, onClose, onReply, onCopy, onUnsend,
           {item.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+function ConversationMenu({ x, y, user, onClose, onDelete }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "fixed",
+        top: Math.min(y, window.innerHeight - 90),
+        left: Math.min(x, window.innerWidth - 190),
+        zIndex: 1000,
+      }}
+      className="mentora-menu bg-slate-800 border border-white/10 rounded-2xl shadow-2xl py-2 min-w-[180px]"
+    >
+      <button
+        type="button"
+        onClick={() => {
+          onDelete(user);
+          onClose();
+        }}
+        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10"
+      >
+        <FaTrash size={12} /> Delete chat
+      </button>
     </div>
   );
 }
@@ -209,10 +245,10 @@ function MessageBubble({ msg, isOwn, currentUser, onContextMenu }) {
     <div className={`flex ${isOwn ? "justify-end" : "justify-start"} group`}>
       <div
         onContextMenu={(e) => { e.preventDefault(); onContextMenu(e, msg); }}
-        className={`max-w-[70%] rounded-[24px] shadow-xl cursor-context-menu select-none ${
+        className={`max-w-[62%] rounded-2xl shadow-lg cursor-context-menu select-none ${
           isOwn
-            ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-br-md"
-            : "bg-white/10 backdrop-blur-xl text-white rounded-bl-md"
+            ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-br-sm"
+            : "bg-white/10 backdrop-blur-xl text-white rounded-bl-sm"
         }`}
       >
         {/* Forwarded label */}
@@ -238,7 +274,7 @@ function MessageBubble({ msg, isOwn, currentUser, onContextMenu }) {
         )}
 
         {/* Message text */}
-        <div className="px-5 py-3">
+        <div className="px-4 py-2.5">
           {msg.unsent ? (
             <p className="text-sm italic opacity-60">This message was unsent</p>
           ) : (
@@ -275,6 +311,8 @@ function Chat() {
   const [search, setSearch] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [contextMenu, setContextMenu] = useState(null); // { x, y, message }
+  const [conversationMenu, setConversationMenu] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [forwardMsg, setForwardMsg] = useState(null);   // message to forward
   const [isTyping, setIsTyping] = useState(false);      // other person typing
   const [typingTimeout, setTypingTimeout] = useState(null);
@@ -590,6 +628,28 @@ function Chat() {
     setContextMenu({ x: e.clientX, y: e.clientY, message: msg });
   };
 
+  const deleteConversation = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      await fetch(`${API}/api/messages/conversation/${deleteTarget._id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setUsers((prev) => prev.filter((user) => user._id !== deleteTarget._id));
+      if (selectedUser?._id === deleteTarget._id) {
+        setSelectedUser(null);
+        setMessages([]);
+      }
+      setDeleteTarget(null);
+      refreshBadges();
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   // ── AUTO SCROLL ────────────────────────────────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -619,6 +679,43 @@ function Chat() {
           onUnsend={() => handleUnsend(contextMenu.message)}
           onForward={() => setForwardMsg(contextMenu.message)}
         />
+      )}
+
+      {conversationMenu && (
+        <ConversationMenu
+          x={conversationMenu.x}
+          y={conversationMenu.y}
+          user={conversationMenu.user}
+          onClose={() => setConversationMenu(null)}
+          onDelete={setDeleteTarget}
+        />
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="mentora-menu bg-slate-900 border border-white/10 rounded-[28px] p-7 w-full max-w-md shadow-2xl">
+            <h2 className="text-2xl font-black text-white mb-2">Delete chat?</h2>
+            <p className="text-gray-400 text-sm mb-7">
+              This will remove your conversation with {deleteTarget.fullName} from your chat list.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 bg-white/10 hover:bg-white/20 px-4 py-3 rounded-2xl font-bold text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={deleteConversation}
+                className="flex-1 bg-gradient-to-r from-red-500 to-pink-500 px-4 py-3 rounded-2xl font-black text-white"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Forward Modal */}
@@ -660,6 +757,10 @@ function Chat() {
                 <div
                   key={user._id}
                   onClick={() => selectUser(user)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setConversationMenu({ x: e.clientX, y: e.clientY, user });
+                  }}
                   className={`flex items-center gap-4 p-4 rounded-3xl cursor-pointer transition-all duration-300 ${
                     selectedUser?._id === user._id
                       ? "bg-cyan-500/20 border border-cyan-400/30"
@@ -681,11 +782,13 @@ function Chat() {
                         {user.fullName?.charAt(0)}
                       </div>
                     )}
-                    <div
-                      className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
-                        canShowOnline(user) && user.isOnline ? "bg-green-400" : "bg-gray-500"
-                      }`}
-                    />
+                    {canShowOnline(user) && (
+                      <div
+                        className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
+                          user.isOnline ? "bg-green-400" : "bg-gray-500"
+                        }`}
+                      />
+                    )}
                   </div>
 
                   <div className="flex-1 overflow-hidden">
@@ -735,11 +838,13 @@ function Chat() {
                       </div>
                     )}
                   </Link>
-                  <div
-                    className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
-                      canShowOnline(selectedUser) && selectedUser.isOnline ? "bg-green-400" : "bg-gray-500"
-                    }`}
-                  />
+                  {canShowOnline(selectedUser) && (
+                    <div
+                      className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-900 ${
+                        selectedUser.isOnline ? "bg-green-400" : "bg-gray-500"
+                      }`}
+                    />
+                  )}
                 </div>
 
                 <div>

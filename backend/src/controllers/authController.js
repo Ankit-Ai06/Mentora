@@ -28,6 +28,23 @@ const otpHtml = (otpCode, heading, sub) => `
     <p style="color:#64748b;font-size:13px;">If you didn't request this, ignore this email.</p>
   </div>`;
 
+const welcomeHtml = (name) => `
+  <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px;
+       background:#f8fafc;color:#0f172a;border:1px solid #e2e8f0;border-radius:18px;">
+    <h2 style="color:#0891b2;margin:0 0 10px;">Welcome to Mentora, ${name}!</h2>
+    <p style="color:#475569;line-height:1.6;margin:0 0 18px;">
+      We are happy to connect with you. Mentora helps students and professionals
+      learn together, share ideas, find mentors, and grow a meaningful network.
+    </p>
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:18px;margin:18px 0;">
+      <strong>Start strong:</strong>
+      <p style="color:#64748b;margin:8px 0 0;">
+        Complete your profile, connect with people who inspire you, and share your first post.
+      </p>
+    </div>
+    <p style="color:#64748b;font-size:13px;margin:0;">Thanks for joining us. Keep learning and keep showing up.</p>
+  </div>`;
+
 // ─── SEND EMAIL HELPER ────────────────────────────────────────────
 const trySendEmail = async (to, subject, html, otpCode) => {
   const msg = {
@@ -45,6 +62,22 @@ const trySendEmail = async (to, subject, html, otpCode) => {
   } catch (error) {
     console.error("❌ SendGrid Email Error:", error.response?.body || error.message);
     throw new Error("Failed to send OTP email");
+  }
+};
+
+const sendWelcomeEmail = async (to, name) => {
+  try {
+    await sgMail.send({
+      to,
+      from: process.env.EMAIL_FROM || "mentora.noreply@gmail.com",
+      subject: "Welcome to Mentora",
+      html: welcomeHtml(name),
+      text: `Welcome to Mentora, ${name}! We are happy to connect with you.`,
+    });
+    return true;
+  } catch (error) {
+    console.error("Welcome email failed:", error.response?.body || error.message);
+    return false;
   }
 };
 
@@ -221,8 +254,10 @@ const registerUser = async (req, res) => {
       password: hashedPassword,
     });
 
+    sendWelcomeEmail(user.email, user.fullName).catch(() => {});
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    res.status(201).json({ message: "Account created successfully!", token, user });
+    res.status(201).json({ message: "Welcome to Mentora!", isNewUser: true, token, user });
   } catch (err) {
     console.error("registerUser error:", err.message);
     res.status(500).json({ message: err.message || "Registration failed. Please try again." });

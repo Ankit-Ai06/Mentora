@@ -5,7 +5,7 @@ import {
   FaUser, FaPhone, FaEnvelope, FaLock, FaCalendar,
   FaEye, FaEyeSlash, FaCheck, FaTimes, FaGraduationCap,
   FaBriefcase, FaArrowLeft, FaArrowRight, FaShieldAlt,
-  FaExclamationCircle,
+  FaExclamationCircle, FaMoon, FaSun,
 } from "react-icons/fa";
 
 import { API_URL } from "../config";
@@ -223,6 +223,7 @@ function OtpBoxes({ value, onChange }) {
 // ─── MAIN ─────────────────────────────────────────────────────────
 export default function Signup() {
   const navigate = useNavigate();
+  const [authTheme, setAuthTheme] = useState(localStorage.getItem("mentora:authTheme") || "light");
   const [step, setStep] = useState(0); // 0 details | 1 otp | 2 role | 3 password
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -407,6 +408,7 @@ export default function Signup() {
       localStorage.setItem("token", r.data.token);
       localStorage.setItem("user", JSON.stringify({ ...r.data.user, preferences }));
       localStorage.setItem("preferences", JSON.stringify(preferences));
+      localStorage.setItem("mentora:firstWelcome", "true");
       setDone(true);
       setTimeout(() => navigate("/home"), 2000);
     } catch (err) {
@@ -430,7 +432,7 @@ export default function Signup() {
 
   // ── Success screen ────────────────────────────────────────────
   if (done) return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center">
+    <div className={`mentora-auth ${authTheme === "dark" ? "mentora-auth-dark" : "mentora-auth-light"} min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center`}>
       <div className="text-center px-8 animate-in fade-in duration-500">
         <div className="text-7xl mb-5 animate-bounce">🎉</div>
         <h2 className="text-4xl font-black text-white mb-2">You're in!</h2>
@@ -444,7 +446,19 @@ export default function Signup() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex">
+    <div className={`mentora-auth ${authTheme === "dark" ? "mentora-auth-dark" : "mentora-auth-light"} min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex`}>
+      <button
+        type="button"
+        onClick={() => {
+          const next = authTheme === "dark" ? "light" : "dark";
+          setAuthTheme(next);
+          localStorage.setItem("mentora:authTheme", next);
+        }}
+        className="fixed top-5 right-5 z-40 w-11 h-11 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20"
+        title={authTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      >
+        {authTheme === "dark" ? <FaSun /> : <FaMoon />}
+      </button>
 
       {/* ── LEFT PANEL (desktop only) ─────────────────────────── */}
       <div className="hidden lg:flex w-[42%] relative overflow-hidden flex-col justify-center p-14">

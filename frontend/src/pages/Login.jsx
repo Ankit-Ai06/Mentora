@@ -9,6 +9,8 @@ import {
   FaTimes,
   FaArrowLeft,
   FaCheckCircle,
+  FaMoon,
+  FaSun,
 } from "react-icons/fa";
 
 import { API_URL } from "../config";
@@ -363,6 +365,7 @@ function ForgotPasswordModal({ onClose }) {
 
 function Login() {
   const navigate = useNavigate();
+  const [authTheme, setAuthTheme] = useState(localStorage.getItem("mentora:authTheme") || "light");
 
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
@@ -386,6 +389,7 @@ function Login() {
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify({ ...response.data.user, preferences }));
       localStorage.setItem("preferences", JSON.stringify(preferences));
+      localStorage.removeItem("mentora:firstWelcome");
       navigate("/home");
     } catch (err) {
       setError(err.response?.data?.message || "Login Failed");
@@ -394,10 +398,58 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 px-4">
+    <div className={`mentora-auth ${authTheme === "dark" ? "mentora-auth-dark" : "mentora-auth-light"} min-h-screen flex bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900`}>
 
       {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
 
+      <button
+        type="button"
+        onClick={() => {
+          const next = authTheme === "dark" ? "light" : "dark";
+          setAuthTheme(next);
+          localStorage.setItem("mentora:authTheme", next);
+        }}
+        className="fixed top-5 right-5 z-40 w-11 h-11 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20"
+        title={authTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      >
+        {authTheme === "dark" ? <FaSun /> : <FaMoon />}
+      </button>
+
+      <div className="hidden lg:flex w-[42%] relative overflow-hidden flex-col justify-center p-14">
+        <div className="absolute w-[500px] h-[500px] bg-cyan-500/6 rounded-full blur-3xl -top-20 -left-40 pointer-events-none" />
+        <div className="absolute w-72 h-72 bg-blue-600/8 rounded-full blur-3xl bottom-10 right-0 pointer-events-none" />
+        <div className="relative z-10 max-w-[340px]">
+          <div className="w-14 h-14 rounded-[18px] bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-2xl font-black text-slate-900 mb-10 shadow-xl shadow-cyan-500/20">
+            M
+          </div>
+          <h1 className="text-6xl font-black text-white leading-none mb-4">
+            Build<br />your<br />
+            <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">network.</span>
+          </h1>
+          <p className="text-gray-500 text-sm leading-relaxed mb-10">
+            Mentora connects students and professionals to learn, collaborate, and grow together.
+          </p>
+          <div className="space-y-4">
+            {[
+              { t: "Students", d: "Find mentors, build your profile, get hired" },
+              { t: "Professionals", d: "Give back, hire talent, grow your brand" },
+              { t: "Everyone", d: "Real-time chat, posts, and connections" },
+            ].map(({ t, d }) => (
+              <div key={t} className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-sm font-black text-cyan-300 shrink-0">
+                  {t.charAt(0)}
+                </div>
+                <div>
+                  <p className="text-white font-bold text-sm">{t}</p>
+                  <p className="text-gray-600 text-xs">{d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center p-5">
       <div className="w-full max-w-md">
 
         {/* Card */}
@@ -489,6 +541,7 @@ function Login() {
           </p>
 
         </div>
+      </div>
       </div>
     </div>
   );

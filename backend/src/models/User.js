@@ -43,6 +43,13 @@ const userSchema = new mongoose.Schema(
     linkedin: { type: String, default: "" },
 
     profileViews: { type: Number, default: 0 },
+    profileViewers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    hiddenChats: [
+      {
+        userId: { type: String, required: true },
+        hiddenAt: { type: Date, default: Date.now },
+      },
+    ],
     mentorshipAvailable: { type: Boolean, default: false },
 
     isPrivate: { type: Boolean, default: false },

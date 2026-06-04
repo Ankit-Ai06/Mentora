@@ -76,3 +76,66 @@
 .mentora-light .fixed .bg-gradient-to-r {
   color: #ffffff !important;
 }
+
+.mentora-menu {
+  color: #f8fafc;
+}
+
+.mentora-light .mentora-menu,
+.mentora-auth-light .mentora-menu {
+  background-color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #0f172a !important;
+}
+
+.mentora-light .mentora-menu button:not(.text-red-400),
+.mentora-auth-light .mentora-menu button:not(.text-red-400) {
+  color: #0f172a !important;
+}
+
+.mentora-auth {
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.mentora-auth-light {
+  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 52%, #ffffff 100%) !important;
+  color: #0f172a;
+}
+
+.mentora-auth-light .text-white,
+.mentora-auth-light .text-gray-200,
+.mentora-auth-light .text-gray-300 {
+  color: #0f172a !important;
+}
+
+.mentora-auth-light .text-gray-400,
+.mentora-auth-light .text-gray-500,
+.mentora-auth-light .text-gray-600,
+.mentora-auth-light .text-gray-700 {
+  color: #475569 !important;
+}
+
+.mentora-auth-light .bg-white\/5 {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.mentora-auth-light .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.mentora-auth-light .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+.mentora-auth-light input {
+  color: #0f172a !important;
+}
+
+.mentora-auth-light input::placeholder {
+  color: #64748b !important;
+}
+
+.mentora-auth-light .fixed.top-5 {
+  color: #0f172a !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}

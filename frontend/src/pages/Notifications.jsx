@@ -50,17 +50,19 @@ function Notifications() {
         {},
         { headers }
       );
-      if (action === "ignore") {
-        setNotifications((prev) => prev.filter((n) => n._id !== notification._id));
-      } else {
-        setNotifications((prev) =>
-          prev.map((n) =>
-            n._id === notification._id
-              ? { ...n, read: true, requestPending: false, actionStatus: "accepted" }
-              : n
-          )
-        );
-      }
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.type === "connection_request" &&
+          n.sender?._id === notification.sender._id
+            ? {
+                ...n,
+                read: true,
+                requestPending: false,
+                actionStatus: action === "accept" ? "accepted" : "ignored",
+              }
+            : n
+        )
+      );
       refreshBadges();
     } catch (err) {
       console.log(err);
@@ -166,6 +168,12 @@ function Notifications() {
                     >
                       <FaCommentDots size={11} /> Message
                     </Link>
+                  )}
+
+                  {n.type === "connection_request" && n.actionStatus === "ignored" && (
+                    <p className="mt-3 text-xs font-bold text-gray-500">
+                      Request ignored
+                    </p>
                   )}
                 </div>
               </div>

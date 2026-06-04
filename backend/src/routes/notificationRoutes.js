@@ -30,6 +30,23 @@ router.get(
         createdAt: -1
       });
 
+      const pendingRequestSenders = new Set(
+        (currentUser?.requests || []).map((id) => id.toString())
+      );
+      const newestPendingNotificationBySender = new Map();
+
+      notifications.forEach((notification) => {
+        const senderId = notification.sender?._id?.toString();
+        if (
+          notification.type === "connection_request" &&
+          senderId &&
+          pendingRequestSenders.has(senderId) &&
+          !newestPendingNotificationBySender.has(senderId)
+        ) {
+          newestPendingNotificationBySender.set(senderId, notification._id.toString());
+        }
+      });
+
       res.json(
         notifications.map((notification) => {
           const item = notification.toObject();
@@ -37,7 +54,7 @@ router.get(
           const requestPending =
             item.type === "connection_request" &&
             senderId &&
-            currentUser?.requests?.some((id) => id.toString() === senderId);
+            newestPendingNotificationBySender.get(senderId) === item._id.toString();
 
           return {
             ...item,

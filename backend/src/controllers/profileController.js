@@ -23,6 +23,20 @@ const restrictedProfile = (profile, viewerId) => ({
   canViewFullProfile: false,
 });
 
+const recordProfileView = async (profile, viewerId) => {
+  if (!profile || profile._id.toString() === viewerId.toString()) return;
+
+  const alreadyViewed = profile.profileViewers?.some(
+    (id) => id.toString() === viewerId.toString()
+  );
+
+  if (alreadyViewed) return;
+
+  profile.profileViewers = [...(profile.profileViewers || []), viewerId];
+  profile.profileViews = (profile.profileViews || 0) + 1;
+  await profile.save();
+};
+
 // GET PROFILE
 const getProfile = async (req, res) => {
   try {
@@ -112,10 +126,7 @@ const getPublicProfile = async (req, res) => {
     const canViewFullProfile =
       isOwn || !profile.isPrivate || isConnected;
 
-    if (!isOwn) {
-      profile.profileViews = (profile.profileViews || 0) + 1;
-      await profile.save();
-    }
+    await recordProfileView(profile, req.user.id);
 
     if (!canViewFullProfile) {
       return res.json(restrictedProfile(profile, req.user.id));
@@ -151,10 +162,7 @@ const viewProfile = async (req, res) => {
       });
     }
 
-    profile.profileViews =
-      (profile.profileViews || 0) + 1;
-
-    await profile.save();
+    await recordProfileView(profile, req.user.id);
 
     res.json({
       success: true,

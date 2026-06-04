@@ -7,15 +7,42 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { API_URL } from "../config";
 
+const HOME_THOUGHTS = [
+  {
+    title: "One useful connection can change a semester.",
+    text: "Ask a clear question, share your context, and follow up with gratitude.",
+  },
+  {
+    title: "Your profile is your learning trail.",
+    text: "Post what you are building, what you learned, and where you need feedback.",
+  },
+  {
+    title: "Mentorship starts with curiosity.",
+    text: "The best conversations begin with a thoughtful message and a specific goal.",
+  },
+  {
+    title: "Consistency compounds quietly.",
+    text: "A small update today becomes visible progress when someone visits tomorrow.",
+  },
+  {
+    title: "Network with generosity first.",
+    text: "Recommend a resource, answer a question, or celebrate someone else's progress.",
+  },
+];
+
 function Home() {
 
   const user = JSON.parse(localStorage.getItem("user"));
+  const firstWelcome = localStorage.getItem("mentora:firstWelcome") === "true";
+  const firstName = user?.fullName?.split(" ")[0] || user?.fullName || "there";
 
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalMentors: 0,
     totalPosts: 0,
   });
+  const [dailyIndex] = useState(() => Math.floor(Date.now() / 86400000) % HOME_THOUGHTS.length);
+  const [activeThought, setActiveThought] = useState(dailyIndex);
 
   // Fetch Platform Stats
   const fetchStats = async () => {
@@ -50,7 +77,17 @@ function Home() {
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchStats();
+    if (firstWelcome) {
+      window.setTimeout(() => localStorage.removeItem("mentora:firstWelcome"), 3000);
+    }
 
+  }, [firstWelcome]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setActiveThought((prev) => (prev + 1) % HOME_THOUGHTS.length);
+    }, 6000);
+    return () => window.clearInterval(id);
   }, []);
 
   return (
@@ -68,10 +105,10 @@ function Home() {
         >
 
           <h1 className="text-3xl font-black leading-tight">
-            Welcome back,
+            {firstWelcome ? "Welcome," : "Welcome back,"}
             <br />
             <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-              {user?.fullName}
+              {firstWelcome ? firstName : user?.fullName}
             </span>
           </h1>
 
@@ -148,6 +185,46 @@ function Home() {
 
           </motion.div>
 
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {HOME_THOUGHTS.slice(0, 3).map((_, index) => {
+            const thoughtIndex = (dailyIndex + index) % HOME_THOUGHTS.length;
+            const item = HOME_THOUGHTS[thoughtIndex];
+            const active = thoughtIndex === activeThought;
+
+            return (
+              <motion.div
+                key={item.title}
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: index * 0.08 }}
+                className={`rounded-2xl border p-5 min-h-40 flex flex-col justify-between ${
+                  active
+                    ? "bg-cyan-400/15 border-cyan-400/30 shadow-xl shadow-cyan-500/10"
+                    : "bg-white/10 border-white/10"
+                }`}
+              >
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[2px] text-cyan-400 mb-3">
+                    Daily thought
+                  </p>
+                  <h3 className="text-lg font-black text-white leading-tight">{item.title}</h3>
+                  <p className="text-gray-400 text-sm mt-3 leading-relaxed">{item.text}</p>
+                </div>
+                <div className="mt-5 flex gap-1.5">
+                  {HOME_THOUGHTS.map((dot, dotIndex) => (
+                    <span
+                      key={dot.title}
+                      className={`h-1.5 rounded-full ${
+                        dotIndex === activeThought ? "w-6 bg-cyan-400" : "w-1.5 bg-white/20"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
 
       </div>

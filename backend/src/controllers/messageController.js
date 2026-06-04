@@ -1,5 +1,12 @@
 const Message = require("../models/Message");
 const Notification = require("../models/Notification");
+const User = require("../models/User");
+
+const getHiddenAt = async (userId, otherUserId) => {
+  const user = await User.findById(userId).select("hiddenChats").lean();
+  const hidden = user?.hiddenChats?.find((chat) => chat.userId === otherUserId);
+  return hidden?.hiddenAt ? new Date(hidden.hiddenAt) : null;
+};
 
 // ─── SEND MESSAGE ────────────────────────────────────────────────
 const sendMessage = async (req, res) => {
@@ -33,9 +40,16 @@ const sendMessage = async (req, res) => {
 
 const getUnreadCount = async (req, res) => {
   try {
+    const user = await User.findById(req.params.userId).select("hiddenChats").lean();
+    const hiddenFilters = (user?.hiddenChats || []).map((chat) => ({
+      senderId: chat.userId,
+      createdAt: { $lte: chat.hiddenAt },
+    }));
+
     const count = await Message.countDocuments({
       receiverId: req.params.userId,
       status: { $ne: "seen" },
+      ...(hiddenFilters.length ? { $nor: hiddenFilters } : {}),
     });
 
     res.json({ count });
@@ -48,12 +62,14 @@ const getUnreadCount = async (req, res) => {
 const getMessages = async (req, res) => {
   try {
     const { senderId, receiverId } = req.params;
+    const hiddenAt = await getHiddenAt(senderId, receiverId);
 
     const messages = await Message.find({
       $or: [
         { senderId, receiverId },
         { senderId: receiverId, receiverId: senderId },
       ],
+      ...(hiddenAt ? { createdAt: { $gt: hiddenAt } } : {}),
     })
       .sort({ createdAt: 1 })
       .populate("replyTo", "text senderId unsent");
@@ -66,6 +82,26 @@ const getMessages = async (req, res) => {
 };
 
 // ─── UNSEND MESSAGE ──────────────────────────────────────────────
+const deleteConversation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { otherUserId } = req.params;
+
+    await User.findByIdAndUpdate(userId, {
+      $pull: { hiddenChats: { userId: otherUserId } },
+    });
+
+    await User.findByIdAndUpdate(userId, {
+      $push: { hiddenChats: { userId: otherUserId, hiddenAt: new Date() } },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Failed to delete conversation" });
+  }
+};
+
 const unsendMessage = async (req, res) => {
   try {
     const { messageId } = req.params;
@@ -164,4 +200,5 @@ module.exports = {
   markDelivered,
   markSeen,
   getUnreadCount,
+  deleteConversation,
 };

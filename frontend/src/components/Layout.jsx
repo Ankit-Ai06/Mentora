@@ -6,6 +6,8 @@ import {
   FaSignOutAlt,
   FaCog,
   FaUsers,
+  FaMoon,
+  FaSun,
 } from "react-icons/fa";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -19,10 +21,12 @@ function Layout({ children }) {
   const location = useLocation();
   const [showLogout, setShowLogout] = useState(false);
   const [badges, setBadges] = useState({ notifications: 0, messages: 0 });
+  const [themePrefs, setThemePrefs] = useState(() =>
+    JSON.parse(localStorage.getItem("preferences") || "{}")
+  );
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const savedPrefs = JSON.parse(localStorage.getItem("preferences") || "{}");
-  const darkMode = savedPrefs.darkMode === true;
+  const darkMode = themePrefs.darkMode === true;
 
   useEffect(() => {
     const fetchBadges = async () => {
@@ -62,6 +66,17 @@ function Layout({ children }) {
     navigate("/login");
   };
 
+  const toggleTheme = () => {
+    const nextPrefs = { ...themePrefs, darkMode: !darkMode };
+    const nextUser = {
+      ...user,
+      preferences: { ...(user.preferences || {}), darkMode: !darkMode },
+    };
+    localStorage.setItem("preferences", JSON.stringify(nextPrefs));
+    localStorage.setItem("user", JSON.stringify(nextUser));
+    setThemePrefs(nextPrefs);
+  };
+
   const navItems = [
     { to: "/home", icon: <FaHome />, label: "Home" },
     { to: "/chat", icon: <FaComments />, label: "Messages", badge: badges.messages },
@@ -73,6 +88,14 @@ function Layout({ children }) {
 
   return (
     <div className={`mentora-app ${darkMode ? "mentora-dark bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white" : "mentora-light bg-slate-100 text-slate-950"} min-h-screen flex overflow-hidden`}>
+      <button
+        type="button"
+        onClick={toggleTheme}
+        className="fixed top-4 right-4 z-40 w-10 h-10 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center hover:bg-white/20"
+        title={darkMode ? "Switch to light theme" : "Switch to dark theme"}
+      >
+        {darkMode ? <FaSun /> : <FaMoon />}
+      </button>
 
       {/* ── SIDEBAR ── */}
       <motion.div

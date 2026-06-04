@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const protect = require("../middleware/authMiddleware");
 
 const {
   sendMessage,
@@ -9,6 +10,7 @@ const {
   markDelivered,
   markSeen,
   getUnreadCount,
+  deleteConversation,
 } = require("../controllers/messageController");
 
 // send
@@ -31,5 +33,7 @@ router.put("/delivered", markDelivered);
 
 // mark seen (called when receiver opens the chat)
 router.put("/seen", markSeen);
+
+router.delete("/conversation/:otherUserId", protect, deleteConversation);
 
 module.exports = router;

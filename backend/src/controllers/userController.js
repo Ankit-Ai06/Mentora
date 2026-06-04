@@ -7,6 +7,19 @@ const Notification = require("../models/Notification");
 const Message = require("../models/Message");
 const Post = require("../models/Post");
 
+const setRequestNotifications = async (receiver, sender, status) => {
+  await Notification.updateMany(
+    {
+      receiver,
+      sender,
+      type: "connection_request",
+    },
+    {
+      read: true,
+      actionStatus: status,
+    }
+  );
+};
 
 // REGISTER USER
 const registerUser = async (req, res) => {
@@ -184,6 +197,9 @@ const sendRequest = async (req, res) => {
       await receiver.save();
       if (sender) await sender.save();
 
+      await setRequestNotifications(receiverId, senderId, "accepted");
+      await setRequestNotifications(senderId, receiverId, "accepted");
+
       await Notification.create({
         receiver: receiverId,
         sender: senderId,
@@ -213,6 +229,8 @@ const sendRequest = async (req, res) => {
 receiver.requests.push(senderId);
 
 await receiver.save();
+
+await setRequestNotifications(receiverId, senderId, "none");
 
 await Notification.create({
   receiver: receiverId,
@@ -364,6 +382,9 @@ const disconnectUser = async (req, res) => {
     await currentUser.save();
     await otherUser.save();
 
+    await setRequestNotifications(req.user.id, req.params.id, "none");
+    await setRequestNotifications(req.params.id, req.user.id, "none");
+
     res.json({
       message: "Connection removed",
     });
@@ -389,13 +410,7 @@ const ignoreRequest = async (req, res) => {
 
     await currentUser.save();
 
-    await Notification.deleteMany(
-      {
-        receiver: req.user.id,
-        sender: req.params.id,
-        type: "connection_request",
-      }
-    );
+    await setRequestNotifications(req.user.id, req.params.id, "ignored");
 
     res.json({
       message: "Connection request ignored",
@@ -417,10 +432,12 @@ const getConnections = async (req, res) => {
         "connections",
         "fullName email role profilePicture profileImage headline isOnline lastSeen preferences mentorshipAvailable"
       );
+    const hiddenChats = user.hiddenChats || [];
 
-    const connections = await Promise.all(
+    const connections = (await Promise.all(
       user.connections.map(async (connection) => {
         const connectionId = connection._id.toString();
+        const hidden = hiddenChats.find((chat) => chat.userId === connectionId);
 
         const lastMessage = await Message.findOne({
           $or: [
@@ -431,10 +448,18 @@ const getConnections = async (req, res) => {
           .sort({ createdAt: -1 })
           .lean();
 
+        if (
+          hidden &&
+          (!lastMessage || new Date(lastMessage.createdAt) <= new Date(hidden.hiddenAt))
+        ) {
+          return null;
+        }
+
         const unreadCount = await Message.countDocuments({
           senderId: connectionId,
           receiverId: req.user.id,
           status: { $ne: "seen" },
+          ...(hidden ? { createdAt: { $gt: hidden.hiddenAt } } : {}),
         });
 
         return {
@@ -446,7 +471,7 @@ const getConnections = async (req, res) => {
           updatedAt: lastMessage?.createdAt || connection.updatedAt,
         };
       })
-    );
+    )).filter(Boolean);
 
     connections.sort(
       (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
