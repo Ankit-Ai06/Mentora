@@ -6,6 +6,8 @@ export const mediaUrl = (src) => {
   const value = String(src);
   const uploadIndex = value.indexOf("/uploads/");
 
+  if (value.startsWith("data:") || value.startsWith("blob:")) return value;
+
   if (uploadIndex !== -1) {
     return `${API_URL}${value.slice(uploadIndex)}`;
   }

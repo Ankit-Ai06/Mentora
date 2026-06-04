@@ -5,6 +5,8 @@ const protect=
 require("../middleware/authMiddleware");
 const upload =
 require("../middleware/uploadMiddleware");
+const fileToDataUrl =
+require("../utils/fileDataUrl");
 
 const {
 getProfile,
@@ -12,9 +14,6 @@ updateProfile,
 getPublicProfile,
 viewProfile
 }=require("../controllers/profileController");
-
-const uploadedImageUrl = (req) =>
-`/uploads/${req.file.filename}`;
 
 router.get("/",protect,getProfile);
 
@@ -33,10 +32,14 @@ protect,
 upload.single("image"),
 async(req,res)=>{
 
-res.json({
-image:
-uploadedImageUrl(req)
+try{
+const image=await fileToDataUrl(req.file);
+res.json({image});
+}catch(error){
+res.status(400).json({
+message:error.message||"Unable to upload image"
 });
+}
 
 }
 );
@@ -46,10 +49,14 @@ protect,
 upload.single("image"),
 async(req,res)=>{
 
-res.json({
-image:
-uploadedImageUrl(req)
+try{
+const image=await fileToDataUrl(req.file);
+res.json({image});
+}catch(error){
+res.status(400).json({
+message:error.message||"Unable to upload image"
 });
+}
 
 }
 );
