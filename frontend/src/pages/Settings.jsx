@@ -5,7 +5,7 @@ import Layout from "../components/Layout";
 import {
   FaLock, FaBell, FaShieldAlt, FaEye, FaUserSlash,
   FaLanguage, FaQuestionCircle, FaInfoCircle,
-  FaSignOutAlt, FaTrash, FaChevronRight, FaCheck,
+  FaTrash, FaChevronRight, FaCheck,
   FaEyeSlash, FaMoon, FaSun, FaDownload, FaLink,
   FaExclamationTriangle,
 } from "react-icons/fa";
@@ -260,7 +260,7 @@ function Settings() {
     showOnlineStatus: true,
     showLastSeen: true,
     readReceipts: true,
-    darkMode: true,
+    darkMode: false,
     twoFactor: false,
   });
   const [profile, setProfile] = useState(user);
@@ -273,10 +273,12 @@ function Settings() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = res.data;
+        const saved = JSON.parse(localStorage.getItem("preferences") || "{}");
         setProfile(data);
         const merged = {
           ...prefs,
           ...(data.preferences || {}),
+          ...(typeof saved.darkMode === "boolean" ? { darkMode: saved.darkMode } : {}),
           privateAccount: !!data.isPrivate,
         };
         setPrefs(merged);
@@ -353,12 +355,6 @@ function Settings() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/login");
-  };
-
   const handleDeleteAccount = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -417,20 +413,20 @@ function Settings() {
           onClick={() => navigate("/profile")}
           className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-3xl px-5 py-4 mb-6 cursor-pointer hover:bg-white/10 transition-colors"
         >
-          {user.profileImage || user.profilePicture ? (
+          {profile?.profileImage || profile?.profilePicture ? (
             <img
-              src={profileImageSrc(user.profileImage || user.profilePicture)}
-              alt={user.fullName}
+              src={profileImageSrc(profile.profileImage || profile.profilePicture)}
+              alt={profile.fullName}
               className="w-14 h-14 rounded-full object-cover shrink-0"
             />
           ) : (
             <div className="w-14 h-14 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center text-xl font-black text-white shrink-0">
-              {user?.fullName?.charAt(0)}
+              {profile?.fullName?.charAt(0)}
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-white text-lg truncate">{user?.fullName}</p>
-            <p className="text-gray-400 text-sm truncate">{user?.email}</p>
+            <p className="font-bold text-white text-lg truncate">{profile?.fullName}</p>
+            <p className="text-gray-400 text-sm truncate">{profile?.email}</p>
           </div>
           <span className="text-cyan-400 text-sm font-medium shrink-0">Edit profile →</span>
         </div>
@@ -568,21 +564,6 @@ function Settings() {
 
         {/* ── DANGER ZONE ── */}
         <Section title="Account Actions">
-          <ClickRow
-            icon={<FaSignOutAlt />}
-            label="Log Out"
-            sublabel="Sign out of your account"
-            danger
-            onClick={() =>
-              setConfirmModal({
-                title: "Log Out?",
-                message: "Are you sure you want to log out from Mentora?",
-                confirmLabel: "Log Out",
-                danger: true,
-                onConfirm: handleLogout,
-              })
-            }
-          />
           <ClickRow
             icon={<FaTrash />}
             label="Delete Account"

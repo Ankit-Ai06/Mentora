@@ -61,3 +61,18 @@
   background-color: #ffffff;
   color: #0f172a !important;
 }
+
+.mentora-light .fixed .bg-slate-900,
+.mentora-light .fixed .bg-slate-800 {
+  background-color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+.mentora-light .fixed .bg-white\/10,
+.mentora-light .fixed .bg-white\/20 {
+  background-color: #f1f5f9 !important;
+}
+
+.mentora-light .fixed .bg-gradient-to-r {
+  color: #ffffff !important;
+}

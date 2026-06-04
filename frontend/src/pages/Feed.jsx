@@ -4,7 +4,7 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 import {
   FaHeart, FaRegHeart, FaComment, FaShare,
-  FaImage, FaEllipsisH, FaPaperPlane, FaTrash, FaTimes, FaCheck,
+  FaImage, FaVideo, FaEllipsisH, FaPaperPlane, FaTrash, FaTimes, FaCheck,
 } from "react-icons/fa";
 
 import { API_URL } from "../config";
@@ -38,6 +38,38 @@ function Avatar({ user, size = "md", linked = false }) {
   }
 
   return body;
+}
+
+function PostMedia({ post }) {
+  const media = Array.isArray(post.media) && post.media.length
+    ? post.media
+    : post.image
+    ? [{ url: post.image, type: "image" }]
+    : [];
+
+  if (!media.length) return null;
+
+  return (
+    <div className="px-4 pb-3 grid gap-3">
+      {media.map((item, index) =>
+        item.type === "video" ? (
+          <video
+            key={`${item.url}-${index}`}
+            src={item.url}
+            className="w-full rounded-2xl object-cover max-h-96 bg-black"
+            controls
+          />
+        ) : (
+          <img
+            key={`${item.url}-${index}`}
+            src={item.url}
+            alt=""
+            className="w-full rounded-2xl object-cover max-h-80"
+          />
+        )
+      )}
+    </div>
+  );
 }
 
 function ShareModal({ post, connections, currentUser, onSend, onClose }) {
@@ -207,12 +239,7 @@ function PostCard({
         <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
       </div>
 
-      {/* Image */}
-      {post.image && (
-        <div className="px-4 pb-3">
-          <img src={post.image} alt="" className="w-full rounded-2xl object-cover max-h-80" />
-        </div>
-      )}
+      <PostMedia post={post} />
 
       {/* Stats row */}
       {(likeCount > 0 || commentCount > 0 || shareCount > 0) && (
@@ -324,18 +351,61 @@ function PostCard({
 // ─── CREATE POST BOX ──────────────────────────────────────────────
 function CreatePostBox({ currentUser, onPosted }) {
   const [content, setContent] = useState("");
+  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaPreview, setMediaPreview] = useState("");
   const [loading, setLoading] = useState(false);
   const token = localStorage.getItem("token");
   const textRef = useRef(null);
+  const mediaPreviewRef = useRef("");
+
+  useEffect(() => {
+    return () => {
+      if (mediaPreviewRef.current) {
+        URL.revokeObjectURL(mediaPreviewRef.current);
+      }
+    };
+  }, []);
+
+  const chooseMedia = (file) => {
+    if (mediaPreviewRef.current) {
+      URL.revokeObjectURL(mediaPreviewRef.current);
+    }
+
+    const url = URL.createObjectURL(file);
+    mediaPreviewRef.current = url;
+    setMediaFile(file);
+    setMediaPreview(url);
+  };
+
+  const removeMedia = () => {
+    if (mediaPreviewRef.current) {
+      URL.revokeObjectURL(mediaPreviewRef.current);
+      mediaPreviewRef.current = "";
+    }
+    setMediaFile(null);
+    setMediaPreview("");
+  };
 
   const submit = async () => {
-    if (!content.trim()) return;
+    if (!content.trim() && !mediaFile) return;
     setLoading(true);
     try {
-      await axios.post(`${API}/api/posts`, { content, image: "" }, {
+      let media = [];
+
+      if (mediaFile) {
+        const fd = new FormData();
+        fd.append("media", mediaFile);
+        const upload = await axios.post(`${API}/api/posts/upload-media`, fd, {
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+        });
+        media = [upload.data];
+      }
+
+      await axios.post(`${API}/api/posts`, { content, media }, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setContent("");
+      removeMedia();
       onPosted();
     } catch (err) { console.log(err); }
     setLoading(false);
@@ -355,25 +425,60 @@ function CreatePostBox({ currentUser, onPosted }) {
             rows={content ? 3 : 1}
             className="w-full bg-transparent text-white placeholder-gray-600 outline-none text-sm resize-none leading-relaxed"
           />
-          {content && (
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
-              <button className="flex items-center gap-2 text-gray-500 hover:text-cyan-400 text-xs transition-colors">
-                <FaImage size={13} /> Photo
+          {mediaPreview && (
+            <div className="relative mt-3 rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+              {mediaFile?.type.startsWith("video/") ? (
+                <video src={mediaPreview} className="w-full max-h-72 object-cover bg-black" controls />
+              ) : (
+                <img src={mediaPreview} alt="" className="w-full max-h-72 object-cover" />
+              )}
+              <button
+                type="button"
+                onClick={removeMedia}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center"
+                title="Remove media"
+              >
+                <FaTimes size={12} />
               </button>
+            </div>
+          )}
+          {(content || mediaFile) && (
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+              <label className="flex items-center gap-2 text-gray-500 hover:text-cyan-400 text-xs transition-colors cursor-pointer">
+                {mediaFile?.type.startsWith("video/") ? <FaVideo size={13} /> : <FaImage size={13} />}
+                Photo / Video
+                <input
+                  type="file"
+                  hidden
+                  accept="image/*,video/*"
+                  onChange={(e) => e.target.files[0] && chooseMedia(e.target.files[0])}
+                />
+              </label>
               <div className="flex items-center gap-2">
                 <span className={`text-xs ${content.length > 280 ? "text-red-400" : "text-gray-600"}`}>
                   {content.length}/500
                 </span>
-                <button onClick={() => setContent("")}
+                <button onClick={() => { setContent(""); removeMedia(); }}
                   className="text-gray-600 hover:text-white text-xs px-2 py-1 rounded-xl transition-colors">
                   Cancel
                 </button>
-                <button onClick={submit} disabled={loading || !content.trim() || content.length > 500}
+                <button onClick={submit} disabled={loading || (!content.trim() && !mediaFile) || content.length > 500}
                   className="bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-900 font-black text-xs px-4 py-1.5 rounded-xl hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-1.5">
                   {loading ? "Posting…" : <><FaPaperPlane size={10} /> Post</>}
                 </button>
               </div>
             </div>
+          )}
+          {!content && !mediaFile && (
+            <label className="inline-flex items-center gap-2 mt-3 text-gray-500 hover:text-cyan-400 text-xs transition-colors cursor-pointer">
+              <FaImage size={13} /> Add photo or video
+              <input
+                type="file"
+                hidden
+                accept="image/*,video/*"
+                onChange={(e) => e.target.files[0] && chooseMedia(e.target.files[0])}
+              />
+            </label>
           )}
         </div>
       </div>

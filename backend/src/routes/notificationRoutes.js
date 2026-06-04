@@ -3,6 +3,8 @@ const router = express.Router();
 
 const Notification =
 require("../models/Notification");
+const User =
+require("../models/User");
 
 const protect =
 require("../middleware/authMiddleware");
@@ -13,19 +15,39 @@ router.get(
   async (req, res) => {
     try {
 
+      const currentUser =
+      await User.findById(req.user.id).select("requests");
+
       const notifications =
       await Notification.find({
         receiver: req.user.id
       })
       .populate(
         "sender",
-        "fullName email"
+        "fullName email profilePicture profileImage"
       )
       .sort({
         createdAt: -1
       });
 
-      res.json(notifications);
+      res.json(
+        notifications.map((notification) => {
+          const item = notification.toObject();
+          const senderId = item.sender?._id?.toString();
+          const requestPending =
+            item.type === "connection_request" &&
+            senderId &&
+            currentUser?.requests?.some((id) => id.toString() === senderId);
+
+          return {
+            ...item,
+            requestPending: !!requestPending,
+            actionStatus: requestPending
+              ? "pending"
+              : item.actionStatus || "none",
+          };
+        })
+      );
 
     } catch (err) {
 
@@ -91,8 +113,11 @@ router.put(
 
     try {
 
-      await Notification.findByIdAndUpdate(
-        req.params.id,
+      await Notification.findOneAndUpdate(
+        {
+          _id: req.params.id,
+          receiver: req.user.id,
+        },
         {
           read: true
         }

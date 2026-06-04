@@ -32,6 +32,12 @@ const notificationSchema = new mongoose.Schema(
     read:{
         type:Boolean,
         default:false
+    },
+
+    actionStatus:{
+        type:String,
+        enum:["pending","accepted","ignored","none"],
+        default:"none"
     }
 },
 {

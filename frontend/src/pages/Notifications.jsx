@@ -2,8 +2,11 @@ import Layout from "../components/Layout";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
-import { FaBell, FaCheck, FaTimes } from "react-icons/fa";
+import { FaBell, FaCheck, FaTimes, FaCommentDots } from "react-icons/fa";
 import { API_URL } from "../config";
+
+const profileImageSrc = (src) =>
+  src?.startsWith("http") ? src : `${API_URL}/uploads/${src}`;
 
 function Notifications() {
   const [notifications, setNotifications] = useState([]);
@@ -14,10 +17,18 @@ function Notifications() {
     Authorization: `Bearer ${token}`,
   };
 
+  const refreshBadges = () =>
+    window.dispatchEvent(new Event("mentora:refresh-badges"));
+
   const fetchNotifications = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/notifications`, { headers });
-      setNotifications(Array.isArray(res.data) ? res.data : []);
+      const items = Array.isArray(res.data) ? res.data : [];
+      setNotifications(items.map((item) => ({ ...item, read: true })));
+      if (items.some((item) => !item.read)) {
+        await axios.put(`${API_URL}/api/notifications/read-all`, {}, { headers });
+        refreshBadges();
+      }
     } catch (err) {
       console.log(err);
     }
@@ -29,21 +40,6 @@ function Notifications() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const refreshBadges = () =>
-    window.dispatchEvent(new Event("mentora:refresh-badges"));
-
-  const markRead = async (id) => {
-    try {
-      await axios.put(`${API_URL}/api/notifications/read/${id}`, {}, { headers });
-      setNotifications((prev) =>
-        prev.map((n) => (n._id === id ? { ...n, read: true } : n))
-      );
-      refreshBadges();
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
   const handleRequest = async (notification, action) => {
     if (!notification.sender?._id) return;
     setLoadingId(notification._id);
@@ -54,8 +50,18 @@ function Notifications() {
         {},
         { headers }
       );
-      await markRead(notification._id);
-      await fetchNotifications();
+      if (action === "ignore") {
+        setNotifications((prev) => prev.filter((n) => n._id !== notification._id));
+      } else {
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n._id === notification._id
+              ? { ...n, read: true, requestPending: false, actionStatus: "accepted" }
+              : n
+          )
+        );
+      }
+      refreshBadges();
     } catch (err) {
       console.log(err);
     }
@@ -88,7 +94,6 @@ function Notifications() {
             notifications.map((n) => (
               <div
                 key={n._id}
-                onClick={() => !n.read && markRead(n._id)}
                 className={`relative bg-white/5 border rounded-2xl p-4 flex gap-3 transition-all ${
                   n.read
                     ? "border-white/10"
@@ -99,8 +104,16 @@ function Notifications() {
                   <span className="absolute right-4 top-4 w-2.5 h-2.5 rounded-full bg-red-500" />
                 )}
 
-                <Link to={n.sender?._id ? `/profile/${n.sender._id}` : "/notifications"} className="w-11 h-11 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center font-black text-slate-950 shrink-0">
-                  {n.sender?.fullName?.charAt(0) || "M"}
+                <Link to={n.sender?._id ? `/profile/${n.sender._id}` : "/notifications"} className="w-11 h-11 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center font-black text-slate-950 shrink-0 overflow-hidden">
+                  {n.sender?.profileImage || n.sender?.profilePicture ? (
+                    <img
+                      src={profileImageSrc(n.sender.profileImage || n.sender.profilePicture)}
+                      alt={n.sender?.fullName || "Mentora"}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    n.sender?.fullName?.charAt(0) || "M"
+                  )}
                 </Link>
 
                 <div className="flex-1 min-w-0">
@@ -118,7 +131,7 @@ function Notifications() {
                     {new Date(n.createdAt).toLocaleString()}
                   </p>
 
-                  {n.type === "connection_request" && !n.read && (
+                  {n.type === "connection_request" && n.requestPending && (
                     <div className="flex gap-2 mt-3">
                       <button
                         type="button"
@@ -143,6 +156,16 @@ function Notifications() {
                         <FaTimes size={10} /> Ignore
                       </button>
                     </div>
+                  )}
+
+                  {n.type === "connection_request" && n.actionStatus === "accepted" && n.sender?._id && (
+                    <Link
+                      to="/chat"
+                      state={{ userId: n.sender._id }}
+                      className="inline-flex items-center gap-2 mt-3 px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black"
+                    >
+                      <FaCommentDots size={11} /> Message
+                    </Link>
                   )}
                 </div>
               </div>

@@ -43,6 +43,7 @@ const userSchema = new mongoose.Schema(
     linkedin: { type: String, default: "" },
 
     profileViews: { type: Number, default: 0 },
+    mentorshipAvailable: { type: Boolean, default: false },
 
     isPrivate: { type: Boolean, default: false },
     preferences: {
@@ -53,7 +54,7 @@ const userSchema = new mongoose.Schema(
       showOnlineStatus: { type: Boolean, default: true },
       showLastSeen: { type: Boolean, default: true },
       readReceipts: { type: Boolean, default: true },
-      darkMode: { type: Boolean, default: true },
+      darkMode: { type: Boolean, default: false },
       twoFactor: { type: Boolean, default: false },
     },
 

@@ -156,6 +156,8 @@ const sendRequest = async (req, res) => {
       });
     }
 
+    const sender = await User.findById(senderId);
+
     if (
       receiver.connections.some(
         (id) => id.toString() === senderId
@@ -164,6 +166,35 @@ const sendRequest = async (req, res) => {
 
       return res.status(400).json({
         message: "Already connected",
+      });
+    }
+
+    if (!receiver.isPrivate) {
+      if (!receiver.connections.some((id) => id.toString() === senderId)) {
+        receiver.connections.push(senderId);
+      }
+
+      if (
+        sender &&
+        !sender.connections.some((id) => id.toString() === receiverId)
+      ) {
+        sender.connections.push(receiverId);
+      }
+
+      await receiver.save();
+      if (sender) await sender.save();
+
+      await Notification.create({
+        receiver: receiverId,
+        sender: senderId,
+        type: "request_accepted",
+        text: "connected with you",
+        actionStatus: "accepted",
+      });
+
+      return res.json({
+        message: "Connected",
+        status: "connected",
       });
     }
 
@@ -188,10 +219,12 @@ await Notification.create({
   sender: senderId,
   type: "connection_request",
   text: "sent you a connection request",
+  actionStatus: "pending",
 });
 
 res.json({
   message: "Connection request sent",
+  status: "requested",
 });
 
   } catch (error) {
@@ -275,7 +308,20 @@ await Notification.create({
   sender: currentUser._id,
   type: "request_accepted",
   text: "accepted your connection request",
+  actionStatus: "accepted",
 });
+
+await Notification.updateMany(
+  {
+    receiver: req.user.id,
+    sender: req.params.id,
+    type: "connection_request",
+  },
+  {
+    read: true,
+    actionStatus: "accepted",
+  }
+);
 
 res.json({
   message: "Connection accepted",
@@ -343,14 +389,11 @@ const ignoreRequest = async (req, res) => {
 
     await currentUser.save();
 
-    await Notification.updateMany(
+    await Notification.deleteMany(
       {
         receiver: req.user.id,
         sender: req.params.id,
         type: "connection_request",
-      },
-      {
-        read: true,
       }
     );
 
@@ -372,7 +415,7 @@ const getConnections = async (req, res) => {
     const user = await User.findById(req.user.id)
       .populate(
         "connections",
-        "fullName email role profilePicture profileImage headline isOnline lastSeen preferences"
+        "fullName email role profilePicture profileImage headline isOnline lastSeen preferences mentorshipAvailable"
       );
 
     const connections = await Promise.all(
@@ -555,7 +598,7 @@ const getPlatformStats = async (req, res) => {
     const totalUsers = await User.countDocuments();
 
     const totalMentors = await User.countDocuments({
-      role: "Mentor",
+      mentorshipAvailable: true,
     });
 
     const totalPosts = await Post.countDocuments();

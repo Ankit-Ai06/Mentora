@@ -379,8 +379,13 @@ function Login() {
     setLoading(true);
     try {
       const response = await axios.post(`${API}/api/auth/login`, formData);
+      const preferences = {
+        ...(response.data.user.preferences || {}),
+        darkMode: false,
+      };
       localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
+      localStorage.setItem("user", JSON.stringify({ ...response.data.user, preferences }));
+      localStorage.setItem("preferences", JSON.stringify(preferences));
       navigate("/home");
     } catch (err) {
       setError(err.response?.data?.message || "Login Failed");

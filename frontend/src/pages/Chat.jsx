@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Layout from "../components/Layout";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   FaPaperPlane,
   FaSearch,
@@ -42,6 +42,31 @@ function MessageStatusIcon({ status, isOwn }) {
   if (status === "delivered")
     return <FaCheckDouble className="text-gray-400" title="Delivered" />;
   return <FaCheck className="text-gray-500" title="Sent" />;
+}
+
+function LinkifiedText({ text }) {
+  const parts = String(text || "").split(/(https?:\/\/[^\s]+)/g);
+
+  return (
+    <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
+      {parts.map((part, index) =>
+        /^https?:\/\/[^\s]+$/.test(part) ? (
+          <a
+            key={`${part}-${index}`}
+            href={part}
+            target="_blank"
+            rel="noreferrer"
+            className="font-bold underline decoration-white/50 underline-offset-4 hover:decoration-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        ) : (
+          <span key={`${part}-${index}`}>{part}</span>
+        )
+      )}
+    </p>
+  );
 }
 
 // ─── FORWARD MODAL ────────────────────────────────────────────────
@@ -217,7 +242,7 @@ function MessageBubble({ msg, isOwn, currentUser, onContextMenu }) {
           {msg.unsent ? (
             <p className="text-sm italic opacity-60">This message was unsent</p>
           ) : (
-            <p className="text-base leading-relaxed">{msg.text}</p>
+            <LinkifiedText text={msg.text} />
           )}
 
           {/* Time + status */}
@@ -238,6 +263,7 @@ function MessageBubble({ msg, isOwn, currentUser, onContextMenu }) {
 // ─── MAIN CHAT COMPONENT ──────────────────────────────────────────
 
 function Chat() {
+  const location = useLocation();
   const currentUser = JSON.parse(localStorage.getItem("user"));
   const savedPrefs = JSON.parse(localStorage.getItem("preferences") || "{}");
   currentUser.preferences = { ...(currentUser.preferences || {}), ...savedPrefs };
@@ -256,6 +282,7 @@ function Chat() {
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
   const selectedUserRef = useRef(null);
+  const openedFromStateRef = useRef("");
   const refreshBadges = () =>
     window.dispatchEvent(new Event("mentora:refresh-badges"));
 
@@ -422,6 +449,20 @@ function Chat() {
   };
 
   // ── SEND MESSAGE ───────────────────────────────────────────────
+  useEffect(() => {
+    const userId = location.state?.userId;
+    if (!userId || openedFromStateRef.current === userId || users.length === 0) return;
+
+    const target = users.find((user) => user._id === userId);
+    if (target) {
+      openedFromStateRef.current = userId;
+      const id = window.setTimeout(() => selectUser(target), 0);
+      return () => window.clearTimeout(id);
+    }
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, users]);
+
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedUser) return;
 

@@ -12,6 +12,7 @@ import {
   FaGlobe,
   FaGraduationCap,
   FaHeart,
+  FaHandsHelping,
   FaLinkedin,
   FaLock,
   FaMapMarkerAlt,
@@ -68,6 +69,38 @@ function EmptyText({ children }) {
   return <p className="text-gray-500 text-sm">{children}</p>;
 }
 
+function PostMedia({ post }) {
+  const media = Array.isArray(post.media) && post.media.length
+    ? post.media
+    : post.image
+    ? [{ url: post.image, type: "image" }]
+    : [];
+
+  if (!media.length) return null;
+
+  return (
+    <div className="mt-4 grid gap-3">
+      {media.map((item, index) =>
+        item.type === "video" ? (
+          <video
+            key={`${item.url}-${index}`}
+            src={item.url}
+            className="w-full max-h-96 rounded-2xl bg-black object-cover"
+            controls
+          />
+        ) : (
+          <img
+            key={`${item.url}-${index}`}
+            src={item.url}
+            alt=""
+            className="w-full max-h-96 object-cover rounded-2xl"
+          />
+        )
+      )}
+    </div>
+  );
+}
+
 function EditInput({ value, onChange, placeholder, multiline = false }) {
   const className =
     "w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm placeholder-gray-600 outline-none focus:border-cyan-400/50 transition-colors";
@@ -116,9 +149,7 @@ function PostCard({ post, currentUserId, onDelete }) {
           </button>
         )}
       </div>
-      {post.image && (
-        <img src={post.image} alt="" className="mt-4 w-full max-h-96 object-cover rounded-2xl" />
-      )}
+      <PostMedia post={post} />
       <div className="flex items-center justify-between text-xs text-gray-500 mt-4 pt-3 border-t border-white/5">
         <span className="flex items-center gap-1">
           {liked ? <FaHeart className="text-red-400" /> : <FaRegHeart />}
@@ -158,6 +189,7 @@ export default function Profile() {
     education: [],
     experience: [],
     achievements: [],
+    mentorshipAvailable: false,
   });
   const [newSkill, setNewSkill] = useState("");
 
@@ -175,6 +207,7 @@ export default function Profile() {
       education: asObjectArray(data.education),
       experience: asObjectArray(data.experience),
       achievements: asObjectArray(data.achievements),
+      mentorshipAvailable: !!data.mentorshipAvailable,
     });
   };
 
@@ -225,6 +258,7 @@ export default function Profile() {
           education: form.education.filter((item) => item.college || item.degree || item.year),
           experience: form.experience.filter((item) => item.company || item.position || item.duration),
           achievements: form.achievements.filter((item) => item.title || item.description),
+          mentorshipAvailable: form.mentorshipAvailable,
         },
         { headers }
       );
@@ -294,8 +328,21 @@ export default function Profile() {
     if (!profile?._id) return;
     setRequesting(true);
     try {
-      await axios.post(`${API}/api/users/connect/${profile._id}`, {}, { headers });
-      setProfile((prev) => ({ ...prev, requestSent: true }));
+      const res = await axios.post(`${API}/api/users/connect/${profile._id}`, {}, { headers });
+      setProfile((prev) =>
+        res.data.status === "connected"
+          ? {
+              ...prev,
+              requestSent: false,
+              isConnected: true,
+              connections: [...(prev.connections || []), currentUser._id],
+            }
+          : {
+              ...prev,
+              requestSent: true,
+              isConnected: false,
+            }
+      );
     } catch (err) {
       console.log(err);
     }
@@ -335,6 +382,7 @@ export default function Profile() {
     linkedin: profile.linkedin || profile.socialLinks?.linkedin,
     portfolio: profile.socialLinks?.portfolio,
   };
+  const mentorConnected = !isOwn && profile.isConnected && profile.mentorshipAvailable;
 
   return (
     <Layout>
@@ -343,8 +391,10 @@ export default function Profile() {
           <div className="relative h-52 md:h-64 rounded-2xl overflow-hidden bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-white/10">
             {cover && <img src={cover} alt="" className="w-full h-full object-cover" />}
             {isOwn && (
-              <label className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 p-3 rounded-xl cursor-pointer transition-colors">
-                <FaCamera size={13} className="text-white" />
+              <label className="absolute inset-0 cursor-pointer group">
+                <span className="absolute top-4 right-4 bg-black/50 group-hover:bg-black/70 p-3 rounded-xl transition-colors">
+                  <FaCamera size={13} className="text-white" />
+                </span>
                 <input
                   type="file"
                   hidden
@@ -357,6 +407,31 @@ export default function Profile() {
 
           <div className="absolute -bottom-12 left-5 md:left-8 flex items-end gap-4">
             <div className="relative">
+              {isOwn ? (
+                <label className="block cursor-pointer group">
+                  {avatar ? (
+                    <img
+                      src={avatar}
+                      alt=""
+                      className="w-28 h-28 rounded-full border-4 border-slate-950 object-cover bg-slate-900"
+                    />
+                  ) : (
+                    <div className="w-28 h-28 rounded-full border-4 border-slate-950 bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-4xl font-black text-slate-950">
+                      {profile.fullName?.charAt(0)}
+                    </div>
+                  )}
+                  <span className="absolute bottom-1 right-1 w-8 h-8 bg-cyan-400 group-hover:bg-cyan-300 rounded-full flex items-center justify-center transition-colors shadow-lg">
+                    <FaCamera size={11} className="text-slate-950" />
+                  </span>
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={(e) => e.target.files[0] && uploadImage(e.target.files[0], "profile")}
+                  />
+                </label>
+              ) : (
+                <>
               {avatar ? (
                 <img
                   src={avatar}
@@ -368,16 +443,7 @@ export default function Profile() {
                   {profile.fullName?.charAt(0)}
                 </div>
               )}
-              {isOwn && (
-                <label className="absolute bottom-1 right-1 w-8 h-8 bg-cyan-400 hover:bg-cyan-300 rounded-full flex items-center justify-center cursor-pointer transition-colors shadow-lg">
-                  <FaCamera size={11} className="text-slate-950" />
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*"
-                    onChange={(e) => e.target.files[0] && uploadImage(e.target.files[0], "profile")}
-                  />
-                </label>
+                </>
               )}
             </div>
           </div>
@@ -391,6 +457,16 @@ export default function Profile() {
               {profile.role && (
                 <span className="bg-cyan-400/15 text-cyan-300 text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
                   {profile.role}
+                </span>
+              )}
+              {profile.mentorshipAvailable && (
+                <span className="inline-flex items-center gap-1 bg-emerald-400/15 text-emerald-300 text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
+                  <FaHandsHelping size={11} /> Mentorship available
+                </span>
+              )}
+              {mentorConnected && (
+                <span className="bg-cyan-400/15 text-cyan-300 text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
+                  Mentor connected
                 </span>
               )}
             </div>
@@ -567,6 +643,22 @@ export default function Profile() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card className="space-y-3">
                   <SectionTitle icon={<FaEdit />} title="Basic Info" />
+                  <button
+                    type="button"
+                    onClick={() => setField("mentorshipAvailable", !form.mentorshipAvailable)}
+                    className={`w-full flex items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
+                      form.mentorshipAvailable
+                        ? "bg-emerald-400/15 border-emerald-400/30 text-emerald-300"
+                        : "bg-white/5 border-white/10 text-gray-300"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 text-sm font-black">
+                      <FaHandsHelping /> Offer mentorship
+                    </span>
+                    <span className="text-xs font-bold">
+                      {form.mentorshipAvailable ? "On" : "Off"}
+                    </span>
+                  </button>
                   <EditInput value={form.headline} onChange={(v) => setField("headline", v)} placeholder="Headline" />
                   <EditInput value={form.location} onChange={(v) => setField("location", v)} placeholder="Location" />
                   <EditInput value={form.about} onChange={(v) => setField("about", v)} placeholder="About" multiline />

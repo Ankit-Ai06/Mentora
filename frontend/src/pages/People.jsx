@@ -44,7 +44,7 @@ function People() {
 
     try {
 
-      await axios.post(
+      const res = await axios.post(
         `${API_URL}/api/users/connect/${id}`,
         {},
         {
@@ -56,7 +56,15 @@ function People() {
 
       setUsers((prev) =>
         prev.map((user) =>
-          user._id === id ? { ...user, requestSent: true } : user
+          user._id === id
+            ? res.data.status === "connected"
+              ? {
+                  ...user,
+                  requestSent: false,
+                  connections: [...(user.connections || []), currentUser._id],
+                }
+              : { ...user, requestSent: true }
+            : user
         )
       );
 
@@ -108,8 +116,6 @@ function People() {
               <option value="all">All</option>
               <option value="Student">Students</option>
               <option value="Professional">Professionals</option>
-              <option value="Mentor">Mentors</option>
-              <option value="Recruiter">Recruiters</option>
             </select>
             <input
               type="text"
@@ -157,6 +163,12 @@ function People() {
                 <p className="text-cyan-400 font-medium">
                   {user.role}
                 </p>
+
+                {user.mentorshipAvailable && (
+                  <p className="mt-2 inline-flex rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-black text-emerald-300">
+                    Mentorship available
+                  </p>
+                )}
 
                 <p className="text-gray-400 mt-2">
                   {user.isPrivate ? "Private account" : user.email}

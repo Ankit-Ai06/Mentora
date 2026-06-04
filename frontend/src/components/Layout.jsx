@@ -22,7 +22,7 @@ function Layout({ children }) {
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const savedPrefs = JSON.parse(localStorage.getItem("preferences") || "{}");
-  const darkMode = savedPrefs.darkMode !== false;
+  const darkMode = savedPrefs.darkMode === true;
 
   useEffect(() => {
     const fetchBadges = async () => {

@@ -4,7 +4,7 @@ const Notification = require("../models/Notification");
 
 const populatePost = (query) =>
   query
-    .populate("user", "fullName profilePicture profileImage role headline")
+    .populate("user", "fullName profilePicture profileImage role headline mentorshipAvailable")
     .populate("comments.user", "fullName profilePicture profileImage role")
     .populate("shares", "fullName");
 
@@ -22,15 +22,20 @@ const notifyPostOwner = async (post, senderId, type, text) => {
 // CREATE POST
 const createPost = async (req, res) => {
   try {
-    const { content, image } = req.body;
-    if (!content?.trim()) {
-      return res.status(400).json({ message: "Post content is required" });
+    const { content, image, media } = req.body;
+    const mediaItems = Array.isArray(media)
+      ? media.filter((item) => item?.url && ["image", "video"].includes(item.type))
+      : [];
+
+    if (!content?.trim() && mediaItems.length === 0 && !image) {
+      return res.status(400).json({ message: "Write something or add media to post" });
     }
 
     const post = await Post.create({
       user: req.user.id,
-      content: content.trim(),
+      content: content?.trim() || "",
       image: image || "",
+      media: mediaItems,
     });
 
     const populated = await populatePost(Post.findById(post._id));

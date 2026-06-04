@@ -22,11 +22,23 @@ function Home() {
 
     try {
 
-      const res = await axios.get(
-        `${API_URL}/api/users/stats/platform`
-      );
+      const token = localStorage.getItem("token");
 
-      setStats(res.data);
+      const [res, connectionsRes] = await Promise.all([
+        axios.get(`${API_URL}/api/users/stats/platform`),
+        axios.get(`${API_URL}/api/users/connections`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      const mentorConnections = Array.isArray(connectionsRes.data)
+        ? connectionsRes.data.filter((connection) => connection.mentorshipAvailable).length
+        : 0;
+
+      setStats({
+        ...res.data,
+        totalMentors: mentorConnections,
+      });
 
     } catch (error) {
 
@@ -116,7 +128,7 @@ function Home() {
             </h2>
 
             <p className="text-gray-300 mt-2">
-              Mentors Connected
+              Mentor Connections
             </p>
 
           </motion.div>

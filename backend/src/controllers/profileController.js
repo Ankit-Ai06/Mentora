@@ -19,6 +19,7 @@ const restrictedProfile = (profile, viewerId) => ({
   connections: profile.connections,
   isConnected: false,
   requestSent: profile.requests?.some((id) => id.toString() === viewerId.toString()),
+  mentorshipAvailable: profile.mentorshipAvailable,
   canViewFullProfile: false,
 });
 
@@ -55,6 +56,7 @@ const updateProfile = async (req, res) => {
   socialLinks,
   isPrivate,
   preferences,
+  mentorshipAvailable,
 } = req.body;
 
 const updatedUser =
@@ -77,6 +79,7 @@ const updatedUser =
       socialLinks,
       isPrivate,
       preferences,
+      mentorshipAvailable,
     },
     {
       new: true,

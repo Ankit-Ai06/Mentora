@@ -400,8 +400,13 @@ export default function Signup() {
         password: form.password,
         verifyToken,
       });
+      const preferences = {
+        ...(r.data.user.preferences || {}),
+        darkMode: false,
+      };
       localStorage.setItem("token", r.data.token);
-      localStorage.setItem("user", JSON.stringify(r.data.user));
+      localStorage.setItem("user", JSON.stringify({ ...r.data.user, preferences }));
+      localStorage.setItem("preferences", JSON.stringify(preferences));
       setDone(true);
       setTimeout(() => navigate("/home"), 2000);
     } catch (err) {
