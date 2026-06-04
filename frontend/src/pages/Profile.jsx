@@ -7,6 +7,7 @@ import {
   FaCamera,
   FaCertificate,
   FaCheck,
+  FaComment,
   FaEdit,
   FaGithub,
   FaGlobe,
@@ -26,6 +27,7 @@ import {
   FaUserMinus,
 } from "react-icons/fa";
 import { API_URL } from "../config";
+import { mediaUrl } from "../utils/media";
 
 const API = API_URL;
 
@@ -38,8 +40,7 @@ function timeAgo(date) {
 }
 
 function imageSrc(src) {
-  if (!src) return "";
-  return src.startsWith("http") ? src : `${API}/uploads/${src}`;
+  return mediaUrl(src);
 }
 
 function asObjectArray(value) {
@@ -84,14 +85,14 @@ function PostMedia({ post }) {
         item.type === "video" ? (
           <video
             key={`${item.url}-${index}`}
-            src={item.url}
+            src={mediaUrl(item.url)}
             className="w-full max-h-96 rounded-2xl bg-black object-cover"
             controls
           />
         ) : (
           <img
             key={`${item.url}-${index}`}
-            src={item.url}
+            src={mediaUrl(item.url)}
             alt=""
             className="w-full max-h-96 object-cover rounded-2xl"
           />
@@ -128,11 +129,13 @@ function EditInput({ value, onChange, placeholder, multiline = false }) {
   );
 }
 
-function PostCard({ post, currentUserId, onDelete }) {
+function PostCard({ post, currentUserId, onDelete, onDeleteComment }) {
+  const [showComments, setShowComments] = useState(false);
   const liked = post.likes?.includes(currentUserId);
   const isOwn = post.user?._id === currentUserId || post.user === currentUserId;
   const commentCount = post.comments?.length || 0;
   const shareCount = post.shares?.length || 0;
+  const ownerId = post.user?._id || post.user;
 
   return (
     <Card>
@@ -160,6 +163,60 @@ function PostCard({ post, currentUserId, onDelete }) {
         </span>
         <span>{timeAgo(post.createdAt)}</span>
       </div>
+      <button
+        type="button"
+        onClick={() => setShowComments((prev) => !prev)}
+        className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-cyan-300"
+      >
+        <FaComment size={11} />
+        {showComments ? "Hide comments" : commentCount ? `View ${commentCount} comments` : "View comments"}
+      </button>
+      {showComments && (
+        <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
+          {commentCount ? (
+            post.comments.map((comment) => {
+              const avatar = imageSrc(comment.user?.profileImage || comment.user?.profilePicture);
+              const canDelete =
+                comment.user?._id === currentUserId || ownerId === currentUserId;
+
+              return (
+                <div key={comment._id} className="flex items-start gap-2">
+                  {avatar ? (
+                    <img src={avatar} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-xs font-black text-slate-950 shrink-0">
+                      {comment.user?.fullName?.charAt(0) || "M"}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl px-3 py-2">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-xs font-black">{comment.user?.fullName || "Mentora user"}</p>
+                          <p className="text-gray-300 text-sm whitespace-pre-wrap break-words">{comment.text}</p>
+                        </div>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteComment(post._id, comment._id)}
+                            className="text-gray-600 hover:text-red-400"
+                            title="Delete comment"
+                          >
+                            <FaTrash size={10} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-[10px] mt-1 ml-2">{timeAgo(comment.createdAt)}</p>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-gray-500 text-sm">No comments yet.</p>
+          )}
+        </div>
+      )}
     </Card>
   );
 }
@@ -319,6 +376,15 @@ export default function Profile() {
     try {
       await axios.delete(`${API}/api/posts/${postId}`, { headers });
       setPosts((prev) => prev.filter((post) => post._id !== postId));
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const deleteComment = async (postId, commentId) => {
+    try {
+      const res = await axios.delete(`${API}/api/posts/${postId}/comments/${commentId}`, { headers });
+      setPosts((prev) => prev.map((post) => (post._id === postId ? res.data : post)));
     } catch (err) {
       console.log(err);
     }
@@ -634,7 +700,13 @@ export default function Profile() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {posts.length ? (
                   posts.map((post) => (
-                    <PostCard key={post._id} post={post} currentUserId={currentUser._id} onDelete={deletePost} />
+                    <PostCard
+                      key={post._id}
+                      post={post}
+                      currentUserId={currentUser._id}
+                      onDelete={deletePost}
+                      onDeleteComment={deleteComment}
+                    />
                   ))
                 ) : (
                   <Card className="lg:col-span-2 text-center py-16">

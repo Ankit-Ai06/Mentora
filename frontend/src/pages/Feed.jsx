@@ -8,10 +8,10 @@ import {
 } from "react-icons/fa";
 
 import { API_URL } from "../config";
+import { mediaUrl } from "../utils/media";
 
 const API = API_URL;
-const profileImageSrc = (src) =>
-  src?.startsWith("http") ? src : `${API}/uploads/${src}`;
+const profileImageSrc = mediaUrl;
 
 function timeAgo(date) {
   const s = Math.floor((Date.now() - new Date(date)) / 1000);
@@ -55,14 +55,14 @@ function PostMedia({ post }) {
         item.type === "video" ? (
           <video
             key={`${item.url}-${index}`}
-            src={item.url}
+            src={mediaUrl(item.url)}
             className="w-full rounded-2xl object-cover max-h-96 bg-black"
             controls
           />
         ) : (
           <img
             key={`${item.url}-${index}`}
-            src={item.url}
+            src={mediaUrl(item.url)}
             alt=""
             className="w-full rounded-2xl object-cover max-h-80"
           />
@@ -207,7 +207,7 @@ function PostCard({
   onDelete,
 }) {
   const [showMenu, setShowMenu] = useState(false);
-  const [showComments, setShowComments] = useState((post.comments || []).length > 0);
+  const [showComments, setShowComments] = useState(false);
   const [commentMenu, setCommentMenu] = useState(null);
   const [commentText, setCommentText] = useState("");
   const [commenting, setCommenting] = useState(false);

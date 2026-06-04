@@ -6,16 +6,14 @@ import {
   FaSignOutAlt,
   FaCog,
   FaUsers,
-  FaMoon,
-  FaSun,
 } from "react-icons/fa";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { API_URL } from "../config";
-const profileImageSrc = (src) =>
-  src?.startsWith("http") ? src : `${API_URL}/uploads/${src}`;
+import { mediaUrl } from "../utils/media";
+const profileImageSrc = mediaUrl;
 function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -60,21 +58,18 @@ function Layout({ children }) {
     };
   }, [location.pathname, user?._id]);
 
+  useEffect(() => {
+    const syncTheme = () => {
+      setThemePrefs(JSON.parse(localStorage.getItem("preferences") || "{}"));
+    };
+    window.addEventListener("mentora:theme-change", syncTheme);
+    return () => window.removeEventListener("mentora:theme-change", syncTheme);
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
-  };
-
-  const toggleTheme = () => {
-    const nextPrefs = { ...themePrefs, darkMode: !darkMode };
-    const nextUser = {
-      ...user,
-      preferences: { ...(user.preferences || {}), darkMode: !darkMode },
-    };
-    localStorage.setItem("preferences", JSON.stringify(nextPrefs));
-    localStorage.setItem("user", JSON.stringify(nextUser));
-    setThemePrefs(nextPrefs);
   };
 
   const navItems = [
@@ -88,15 +83,6 @@ function Layout({ children }) {
 
   return (
     <div className={`mentora-app ${darkMode ? "mentora-dark bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-white" : "mentora-light bg-slate-100 text-slate-950"} min-h-screen flex overflow-hidden`}>
-      <button
-        type="button"
-        onClick={toggleTheme}
-        className="fixed top-4 right-4 z-40 w-10 h-10 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center hover:bg-white/20"
-        title={darkMode ? "Switch to light theme" : "Switch to dark theme"}
-      >
-        {darkMode ? <FaSun /> : <FaMoon />}
-      </button>
-
       {/* ── SIDEBAR ── */}
       <motion.div
         initial={{ x: -100, opacity: 0 }}

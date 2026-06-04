@@ -15,7 +15,7 @@ const {
 } = require("../controllers/postController");
 
 const uploadedMediaUrl = (req) =>
-  `${process.env.BACKEND_URL || `${req.protocol}://${req.get("host")}`}/uploads/${req.file.filename}`;
+  `/uploads/${req.file.filename}`;
 
 router.post("/", protect, createPost);
 router.post("/upload-media", protect, upload.single("media"), (req, res) => {

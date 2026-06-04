@@ -11,10 +11,10 @@ import {
 } from "react-icons/fa";
 
 import { API_URL } from "../config";
+import { mediaUrl } from "../utils/media";
 
 const API = API_URL;
-const profileImageSrc = (src) =>
-  src?.startsWith("http") ? src : `${API}/uploads/${src}`;
+const profileImageSrc = mediaUrl;
 
 // ─── TOGGLE ───────────────────────────────────────────────────────
 function Toggle({ value, onChange }) {
@@ -298,6 +298,16 @@ function Settings() {
   const saveSettings = async (nextPrefs, key = "") => {
     setSavingKey(key);
     localStorage.setItem("preferences", JSON.stringify(nextPrefs));
+    if (key === "darkMode") {
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          ...profile,
+          preferences: { ...(profile?.preferences || {}), darkMode: nextPrefs.darkMode },
+        })
+      );
+      window.dispatchEvent(new Event("mentora:theme-change"));
+    }
 
     try {
       const token = localStorage.getItem("token");

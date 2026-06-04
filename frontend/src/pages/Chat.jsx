@@ -16,10 +16,10 @@ import {
 import io from "socket.io-client";
 
 import { API_URL } from "../config";
+import { mediaUrl } from "../utils/media";
 
 const API = API_URL;
-const profileImageSrc = (src) =>
-  src?.startsWith("http") ? src : `${API}/uploads/${src}`;
+const profileImageSrc = mediaUrl;
 
 // ─── HELPERS ──────────────────────────────────────────────────────
 

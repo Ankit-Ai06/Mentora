@@ -134,6 +134,7 @@ const getPublicProfile = async (req, res) => {
 
     const posts = await Post.find({ user: profile._id })
       .populate("user", "fullName profilePicture profileImage role headline")
+      .populate("comments.user", "fullName profilePicture profileImage role")
       .sort({ createdAt: -1 });
 
     res.json({

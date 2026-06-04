@@ -4,9 +4,9 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { FaBell, FaCheck, FaTimes, FaCommentDots } from "react-icons/fa";
 import { API_URL } from "../config";
+import { mediaUrl } from "../utils/media";
 
-const profileImageSrc = (src) =>
-  src?.startsWith("http") ? src : `${API_URL}/uploads/${src}`;
+const profileImageSrc = mediaUrl;
 
 function Notifications() {
   const [notifications, setNotifications] = useState([]);

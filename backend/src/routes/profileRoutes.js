@@ -14,7 +14,7 @@ viewProfile
 }=require("../controllers/profileController");
 
 const uploadedImageUrl = (req) =>
-`${process.env.BACKEND_URL || `${req.protocol}://${req.get("host")}`}/uploads/${req.file.filename}`;
+`/uploads/${req.file.filename}`;
 
 router.get("/",protect,getProfile);
 

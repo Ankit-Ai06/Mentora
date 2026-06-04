@@ -187,7 +187,7 @@ function Home() {
 
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {HOME_THOUGHTS.slice(0, 3).map((_, index) => {
             const thoughtIndex = (dailyIndex + index) % HOME_THOUGHTS.length;
             const item = HOME_THOUGHTS[thoughtIndex];
@@ -199,18 +199,21 @@ function Home() {
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: index * 0.08 }}
-                className={`rounded-2xl border p-5 min-h-40 flex flex-col justify-between ${
+                className={`rounded-2xl border p-7 min-h-56 flex flex-col justify-between overflow-hidden relative ${
                   active
                     ? "bg-cyan-400/15 border-cyan-400/30 shadow-xl shadow-cyan-500/10"
                     : "bg-white/10 border-white/10"
                 }`}
               >
+                <div className="absolute right-5 top-5 text-5xl font-black text-cyan-400/10">
+                  0{index + 1}
+                </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[2px] text-cyan-400 mb-3">
-                    Daily thought
+                    Mentora daily thought
                   </p>
-                  <h3 className="text-lg font-black text-white leading-tight">{item.title}</h3>
-                  <p className="text-gray-400 text-sm mt-3 leading-relaxed">{item.text}</p>
+                  <h3 className="text-2xl font-black text-white leading-tight pr-8">{item.title}</h3>
+                  <p className="text-gray-400 text-sm mt-4 leading-relaxed">{item.text}</p>
                 </div>
                 <div className="mt-5 flex gap-1.5">
                   {HOME_THOUGHTS.map((dot, dotIndex) => (
@@ -226,6 +229,10 @@ function Home() {
             );
           })}
         </div>
+
+        <footer className="border-t border-white/10 pt-5 text-center text-sm text-gray-500">
+          Message from Mentora: build real skills, keep your network warm, and let every small update tell your story.
+        </footer>
 
       </div>
 

@@ -384,7 +384,6 @@ function Login() {
       const response = await axios.post(`${API}/api/auth/login`, formData);
       const preferences = {
         ...(response.data.user.preferences || {}),
-        darkMode: false,
       };
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify({ ...response.data.user, preferences }));

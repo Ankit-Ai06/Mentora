@@ -7,8 +7,8 @@ import axios from "axios";
 
 import { motion } from "framer-motion";
 import { API_URL } from "../config";
-const profileImageSrc = (src) =>
-  src?.startsWith("http") ? src : `${API_URL}/uploads/${src}`;
+import { mediaUrl } from "../utils/media";
+const profileImageSrc = mediaUrl;
 
 function Connections() {
 

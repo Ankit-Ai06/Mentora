@@ -161,7 +161,12 @@ const commentPost = async (req, res) => {
     });
 
     await post.save();
-    await notifyPostOwner(post, req.user.id, "comment", "commented on your post");
+    await notifyPostOwner(
+      post,
+      req.user.id,
+      "comment",
+      `commented on your post: "${cleanText.slice(0, 120)}${cleanText.length > 120 ? "..." : ""}"`
+    );
 
     const populated = await populatePost(Post.findById(post._id));
     res.status(201).json(populated);
